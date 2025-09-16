@@ -34,7 +34,17 @@ export default function CreateUser() {
       });
       setEditingIndex(null);
     } else {
-      createUser(username, password, name, email, contactNo, userRoleId);
+      // createUser(username, password, name, email, contactNo, userRoleId);
+      createUser({
+        username,
+        password,
+        name,
+        email,
+        contactNo,
+        roleId: userRoleId,
+        role: roleName,
+        isActive: true,
+      });
 
     }
 

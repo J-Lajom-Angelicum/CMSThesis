@@ -1,9 +1,8 @@
 // src/context/AuthContext.tsx
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import { users as initialUsers } from "../data/users";
-import type { UserType } from "../data/users";
+import { users as initialUsers, type UserType } from "../data/users";
 
-// Role mapping inside context only
+// Role mapping helper
 const roleMap: Record<number, "DOCTOR" | "STAFF" | "ADMIN"> = {
   1: "DOCTOR",
   2: "STAFF",
@@ -12,31 +11,15 @@ const roleMap: Record<number, "DOCTOR" | "STAFF" | "ADMIN"> = {
 
 export type Role = "ADMIN" | "DOCTOR" | "STAFF" | null;
 
-// interface User {
-//   username: string;
-//   password: string;
-//   role: Role;
-//   roleId: number;
-// }
-
-interface User extends UserType {}
-
 interface AuthContextType {
   user: string | null;
   role: Role;
   roleId: number | null;
-  users: User[];
+  users: UserType[];
   login: (username: string, password: string) => boolean;
   logout: () => void;
-  createUser: (
-    username: string,
-    password: string,
-    name: string,
-    email: string,
-    contactNo: string,
-    roleId: 1 | 2 | 3
-  ) => void;
-  updateUser: (index: number, updated: Partial<User>) => void;
+  createUser: (newUser: UserType) => void;
+  updateUser: (index: number, updated: Partial<UserType>) => void;
   deleteUser: (index: number) => void;
 }
 
@@ -49,9 +32,17 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [users, setUsers] = useState<User[]>(() => {
+  // Initialize users safely from localStorage or default
+  const [users, setUsers] = useState<UserType[]>(() => {
     const stored = localStorage.getItem("users");
-    return stored ? JSON.parse(stored) : initialUsers;
+    const parsed: UserType[] = stored ? JSON.parse(stored) : initialUsers;
+
+    // Ensure every user has a valid roleId and role
+    return parsed.map(u => ({
+      ...u,
+      roleId: u.roleId ?? (u.role === "ADMIN" ? 3 : u.role === "DOCTOR" ? 1 : 2),
+      role: u.roleId ? roleMap[u.roleId] : u.role
+    }));
   });
 
   const [user, setUser] = useState<string | null>(() => localStorage.getItem("user"));
@@ -61,17 +52,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return stored ? parseInt(stored, 10) : null;
   });
 
+  // Persist changes to localStorage
   useEffect(() => localStorage.setItem("users", JSON.stringify(users)), [users]);
   useEffect(() => user ? localStorage.setItem("user", user) : localStorage.removeItem("user"), [user]);
   useEffect(() => role ? localStorage.setItem("role", role) : localStorage.removeItem("role"), [role]);
-  useEffect(() => roleId ? localStorage.setItem("roleId", String(roleId)) : localStorage.removeItem("roleId"), [roleId]);
+  useEffect(() => roleId !== null ? localStorage.setItem("roleId", String(roleId)) : localStorage.removeItem("roleId"), [roleId]);
 
+  // Login function
   const login = (username: string, password: string) => {
     const found = users.find(u => u.username === username && u.password === password);
     if (found) {
       setUser(found.username);
-      setRole(found.role);
-      setRoleId(found.roleId);
+      const safeRoleId = found.roleId ?? (found.role === "ADMIN" ? 3 : found.role === "DOCTOR" ? 1 : 2);
+      setRoleId(safeRoleId);
+      setRole(roleMap[safeRoleId]);
       return true;
     }
     return false;
@@ -86,41 +80,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem("roleId");
   };
 
-  const createUser = (
-    username: string,
-    password: string,
-    name: string,
-    email: string,
-    contactNo: string,
-    roleId: 1 | 2 | 3
-  ) => {
-  const roleName = roleMap[roleId];
-  setUsers(prev => [
-    ...prev,
-    {
-      id: prev.length + 1, // fake ID for frontend
-      username,
-      password,
-      name,
-      email,
-      contactNo,
-      roleId,
-      role: roleName,
-      isActive: true,
-    },
-  ]);
+  // Create a new user
+  const createUser = (newUser: UserType) => {
+    const roleName = roleMap[newUser.roleId];
+    setUsers(prev => [
+      ...prev,
+      { ...newUser, id: prev.length + 1, role: roleName, isActive: true }
+    ]);
   };
 
-  const updateUser = (
-    index: number,
-    updated: Partial<UserType> // partial allows optional fields
-  ) => {
-  setUsers(prev =>
-    prev.map((u, i) => (i === index ? { ...u, ...updated } : u))
-  );
+  // Update an existing user
+  const updateUser = (index: number, updated: Partial<UserType>) => {
+    setUsers(prev =>
+      prev.map((u, i) => (i === index ? { ...u, ...updated, role: updated.roleId ? roleMap[updated.roleId] : u.role } : u))
+    );
   };
 
-
+  // Delete a user
   const deleteUser = (index: number) => setUsers(prev => prev.filter((_, i) => i !== index));
 
   return (
