@@ -1,6 +1,9 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Thesis.DTOs.Appointment;
+using Thesis.DTOs.Patient;
 using Thesis.Models;
 
 namespace Thesis.Controllers
@@ -10,45 +13,34 @@ namespace Thesis.Controllers
     public class AppointmentController : ControllerBase
     {
         private readonly ThesisContext _context;
+        private readonly IMapper _mapper;
 
-        public AppointmentController(ThesisContext context)
+        public AppointmentController(ThesisContext context, IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
+        // GET: api/Appointment
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Appointment>>> GetAll()
-            => await _context.Appointments.Include(a => a.Patient)
-                                          .Include(a => a.Doctor)
-                                          .ToListAsync();
-
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Appointment>> GetById(int id)
+        public async Task<ActionResult<IEnumerable<AppointmentReadDTO>>> GetAppointments()
         {
-            var appt = await _context.Appointments
-                .Include(a => a.Patient)
-                .Include(a => a.Doctor)
-                .FirstOrDefaultAsync(a => a.AppointmentId == id);
-
-            return appt == null ? NotFound() : appt;
+            var appointment = await _context.Appointments.ToListAsync();
+            return Ok(_mapper.Map<IEnumerable<AppointmentReadDTO>>(appointment));
         }
 
-        [HttpPost]
-        public async Task<ActionResult<Appointment>> Create(Appointment appt)
+        // get: api/Appointments/5
+        [HttpGet("id")]
+        public async Task<ActionResult<AppointmentReadDTO>> GetAppointment(int id)
         {
-            _context.Appointments.Add(appt);
-            await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetById), new { id = appt.AppointmentId }, appt);
+            var appointment = await _context.Appointments.FindAsync(id);
+
+            if (appointment == null)
+                return NotFound();
+
+            return Ok(_mapper.Map<AppointmentReadDTO>(appointment));
         }
 
-        [HttpPut("{id}/status")]
-        public async Task<IActionResult> UpdateStatus(int id, [FromBody] string status)
-        {
-            var appt = await _context.Appointments.FindAsync(id);
-            if (appt == null) return NotFound();
-            appt.AppointmentStatus = status;
-            await _context.SaveChangesAsync();
-            return NoContent();
-        }
+
     }
 }
