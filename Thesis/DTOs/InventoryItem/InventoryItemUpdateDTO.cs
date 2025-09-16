@@ -1,6 +1,6 @@
 ﻿namespace Thesis.DTOs.InventoryItem
 {
-    public class InventoryItemUpdate
+    public class InventoryItemUpdateDTO
     {
         public string ItemName { get; set; }
 

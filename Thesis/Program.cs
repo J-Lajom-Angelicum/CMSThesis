@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Thesis.Mapping;
 using Thesis.Models;
+using Thesis.Mapping;
+using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +15,13 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<ThesisContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("ThesisConnection")));
+
+//This is the one for AutoMapper v15
+builder.Services.AddAutoMapper(cfg =>
+{
+    cfg.AddProfile<ThesisProfile>();
+    // Add other profiles here if you have more
+});
 
 var app = builder.Build();
 

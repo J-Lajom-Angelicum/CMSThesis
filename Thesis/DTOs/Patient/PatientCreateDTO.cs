@@ -1,6 +1,6 @@
 ﻿namespace Thesis.DTOs.Patient
 {
-    public class PatientCreate
+    public class PatientCreateDTO
     {
         public string FirstName { get; set; }
 

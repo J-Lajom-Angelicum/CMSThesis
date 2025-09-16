@@ -1,6 +1,6 @@
 ﻿namespace Thesis.DTOs.Consultation
 {
-    public class ConsulationReadDTO
+    public class ConsultationReadDTO
     {
         public int ConsultationId { get; set; }
 
