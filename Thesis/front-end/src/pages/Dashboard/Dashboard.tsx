@@ -1,4 +1,4 @@
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 import { Tabs, Tab, Card } from "react-bootstrap";
 
 export default function Dashboard() {

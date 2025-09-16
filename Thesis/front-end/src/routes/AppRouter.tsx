@@ -9,7 +9,7 @@ import Login from "../pages/Login";
 import AdminDashboard from "../pages/Dashboard/AdminDashboard";
 import DoctorDashboard from "../pages/Dashboard/DoctorDashboard";
 import StaffDashboard from "../pages/Dashboard/StaffDashboard";
-import CreateUser from "../pages/CreateUser";
+import CreateUser from "../pages/Admin/CreateUser";
 
 export default function AppRouter() {
   return (

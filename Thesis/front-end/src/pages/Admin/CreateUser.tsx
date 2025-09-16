@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Form, Button, Card, Table } from "react-bootstrap";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 
 export default function CreateUser() {
   const { roleId, users, createUser, updateUser, deleteUser } = useAuth();
