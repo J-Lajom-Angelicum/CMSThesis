@@ -9,12 +9,12 @@ namespace Thesis.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class PatientController : ControllerBase
+    public class PatientsController : ControllerBase
     {
         private readonly ThesisContext _context;
         private readonly IMapper _mapper;
 
-        public PatientController(ThesisContext context, IMapper mapper)
+        public PatientsController(ThesisContext context, IMapper mapper)
         {
             _context = context;
             _mapper = mapper;
