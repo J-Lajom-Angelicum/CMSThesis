@@ -3,7 +3,7 @@ import { type ReactNode, useEffect } from "react";
 import { Container, Navbar, Nav, Image } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import Sidebar from "./Sidebar"; // 👈 import sidebar
+import Sidebar from "./Sidebar";
 import "./MainLayout.css";
 
 export default function MainLayout({ children }: { children: ReactNode }) {

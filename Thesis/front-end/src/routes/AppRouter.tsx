@@ -1,6 +1,7 @@
 // src/routes/AppRouter.tsx
 import { Routes, Route } from "react-router-dom";
 import ProtectedRoute from "./ProtectedRoute";
+import { useAuth } from "../context/AuthContext";
 
 import Home from "../pages/Home";
 import About from "../pages/About";
@@ -14,9 +15,10 @@ import StaffDashboard from "../pages/Dashboard/StaffDashboard";
 import CreateUser from "../pages/Admin/CreateUser";
 import PatientList from "../pages/Doctor/PatientList";
 import PatientForm from "../pages/Doctor/PatientForm";
-import Patients from "../pages/Doctor/Patients";
 
 export default function AppRouter() {
+  const { roleId } = useAuth();
+
   return (
     <Routes>
       {/* Public */}
@@ -25,28 +27,20 @@ export default function AppRouter() {
       <Route path="/services" element={<Services />} />
       <Route path="/login" element={<Login />} />
 
-      {/* Dashboards with role-based protection */}
+      {/* Generic dashboard that routes by role */}
       <Route
-        path="/dashboard/admin"
+        path="/dashboard"
         element={
-          <ProtectedRoute allowedRoles={[3]}>
-            <AdminDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/dashboard/doctor"
-        element={
-          <ProtectedRoute allowedRoles={[1]}>
-            <DoctorDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/dashboard/staff"
-        element={
-          <ProtectedRoute allowedRoles={[2]}>
-            <StaffDashboard />
+          <ProtectedRoute allowedRoles={[1, 2, 3]}>
+            {roleId === 3 ? (
+              <AdminDashboard />
+            ) : roleId === 1 ? (
+              <DoctorDashboard />
+            ) : roleId === 2 ? (
+              <StaffDashboard />
+            ) : (
+              <Home />
+            )}
           </ProtectedRoute>
         }
       />
