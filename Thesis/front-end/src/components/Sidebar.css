@@ -1,0 +1,12 @@
+.sidebar {
+  min-height: 100vh;
+  width: 220px;
+  position: fixed;
+  top: 56px; /* height of navbar */
+  left: 0;
+  border-right: 1px solid #ddd;
+}
+
+.sidebar .nav-link {
+  margin-bottom: 8px;
+}

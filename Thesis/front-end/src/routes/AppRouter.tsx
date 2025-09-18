@@ -6,10 +6,15 @@ import Home from "../pages/Home";
 import About from "../pages/About";
 import Services from "../pages/Services";
 import Login from "../pages/Login";
+
 import AdminDashboard from "../pages/Dashboard/AdminDashboard";
 import DoctorDashboard from "../pages/Dashboard/DoctorDashboard";
 import StaffDashboard from "../pages/Dashboard/StaffDashboard";
+
 import CreateUser from "../pages/Admin/CreateUser";
+import PatientList from "../pages/Doctor/PatientList";
+import PatientForm from "../pages/Doctor/PatientForm";
+import Patients from "../pages/Doctor/Patients";
 
 export default function AppRouter() {
   return (
@@ -52,6 +57,32 @@ export default function AppRouter() {
         element={
           <ProtectedRoute allowedRoles={[3]}>
             <CreateUser />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Patient Management (Admin + Doctor + Staff) */}
+      <Route
+        path="/patients"
+        element={
+          <ProtectedRoute allowedRoles={[1, 2, 3]}>
+            <PatientList />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/patients/create"
+        element={
+          <ProtectedRoute allowedRoles={[1, 3]}>
+            <PatientForm mode="create" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/patients/:id/edit"
+        element={
+          <ProtectedRoute allowedRoles={[1, 3]}>
+            <PatientForm mode="edit" />
           </ProtectedRoute>
         }
       />
