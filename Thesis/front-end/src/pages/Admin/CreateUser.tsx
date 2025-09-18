@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Form, Button, Card, Table } from "react-bootstrap";
+import { BsEye, BsEyeSlash } from "react-icons/bs";
 import { useAuth } from "../../context/AuthContext";
 
 export default function CreateUser() {
@@ -12,6 +13,12 @@ export default function CreateUser() {
   const [contactNo, setContactNo] = useState("");
   const [userRoleId, setUserRoleId] = useState<1 | 2 | 3>(2);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
+  // show/hide password in form
+  const [showPassword, setShowPassword] = useState(false);
+
+  // track which users’ passwords are visible in table
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<number, boolean>>({});
 
   if (roleId !== 3) return <h4 className="text-danger">Access denied: Admins only</h4>;
 
@@ -34,7 +41,6 @@ export default function CreateUser() {
       });
       setEditingIndex(null);
     } else {
-      // createUser(username, password, name, email, contactNo, userRoleId);
       createUser({
         username,
         password,
@@ -45,7 +51,6 @@ export default function CreateUser() {
         role: roleName,
         isActive: true,
       });
-
     }
 
     setUsername("");
@@ -60,10 +65,18 @@ export default function CreateUser() {
     const u = users[index];
     setUsername(u.username);
     setPassword(u.password);
+    setName(u.name || "");
     setEmail(u.email || "");
     setContactNo(u.contactNo || "");
     setUserRoleId(u.roleId as 1 | 2 | 3);
     setEditingIndex(index);
+  };
+
+  const togglePasswordVisibility = (index: number) => {
+    setVisiblePasswords((prev) => ({
+      ...prev,
+      [index]: !prev[index],
+    }));
   };
 
   return (
@@ -77,7 +90,21 @@ export default function CreateUser() {
 
         <Form.Group className="mb-2">
           <Form.Label>Password</Form.Label>
-          <Form.Control type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <div className="d-flex">
+            <Form.Control
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <Button
+              variant="outline-secondary"
+              type="button"
+              className="ms-2"
+              onClick={() => setShowPassword((prev) => !prev)}
+            >
+              {showPassword ? <BsEyeSlash /> : <BsEye />}
+            </Button>
+          </div>
         </Form.Group>
 
         <Form.Group className="mb-2">
@@ -92,15 +119,24 @@ export default function CreateUser() {
 
         <Form.Group className="mb-2">
           <Form.Label>Role</Form.Label>
-          <Form.Select value={userRoleId} onChange={(e) => setUserRoleId(Number(e.target.value) as 1 | 2 | 3)}>
+          <Form.Select
+            value={userRoleId}
+            onChange={(e) => setUserRoleId(Number(e.target.value) as 1 | 2 | 3)}
+          >
             <option value={3}>Admin</option>
             <option value={1}>Doctor</option>
             <option value={2}>Staff</option>
           </Form.Select>
         </Form.Group>
 
-        <Button type="submit" className="me-2">{editingIndex !== null ? "Update" : "Create"}</Button>
-        {editingIndex !== null && <Button variant="secondary" onClick={() => setEditingIndex(null)}>Cancel</Button>}
+        <Button type="submit" className="me-2">
+          {editingIndex !== null ? "Update" : "Create"}
+        </Button>
+        {editingIndex !== null && (
+          <Button variant="secondary" onClick={() => setEditingIndex(null)}>
+            Cancel
+          </Button>
+        )}
       </Form>
 
       <hr />
@@ -113,7 +149,8 @@ export default function CreateUser() {
             <th>Email</th>
             <th>Contact</th>
             <th>Role</th>
-            <th style={{ width: "150px" }}>Actions</th>
+            <th>Password</th>
+            <th style={{ width: "200px" }}>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -124,8 +161,23 @@ export default function CreateUser() {
               <td>{u.contactNo}</td>
               <td>{u.role}</td>
               <td>
-                <Button size="sm" className="me-2" onClick={() => handleEdit(idx)}>Edit</Button>
-                <Button size="sm" variant="danger" onClick={() => deleteUser(idx)}>Delete</Button>
+                {visiblePasswords[idx] ? u.password : "••••••"}
+                <Button
+                  size="sm"
+                  variant="outline-secondary"
+                  className="ms-2"
+                  onClick={() => togglePasswordVisibility(idx)}
+                >
+                  {visiblePasswords[idx] ? <BsEyeSlash /> : <BsEye />}
+                </Button>
+              </td>
+              <td>
+                <Button size="sm" className="me-2" onClick={() => handleEdit(idx)}>
+                  Edit
+                </Button>
+                <Button size="sm" variant="danger" onClick={() => deleteUser(idx)}>
+                  Delete
+                </Button>
               </td>
             </tr>
           ))}

@@ -2,7 +2,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import { users as initialUsers, type UserType } from "../data/users";
 
-// Role mapping helper
 const roleMap: Record<number, "DOCTOR" | "STAFF" | "ADMIN"> = {
   1: "DOCTOR",
   2: "STAFF",
@@ -32,33 +31,41 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  // Initialize users safely from localStorage or default
+  // Initialize users → merge localStorage with users.ts
   const [users, setUsers] = useState<UserType[]>(() => {
-    const stored = localStorage.getItem("users");
-    const parsed: UserType[] = stored ? JSON.parse(stored) : initialUsers;
+  const stored = localStorage.getItem("users");
+  const parsed: UserType[] = stored ? JSON.parse(stored) : [];
 
-    // Ensure every user has a valid roleId and role
-    return parsed.map(u => ({
-      ...u,
-      roleId: u.roleId ?? (u.role === "ADMIN" ? 3 : u.role === "DOCTOR" ? 1 : 2),
-      role: u.roleId ? roleMap[u.roleId] : u.role
-    }));
+  // Merge: start from initialUsers, then add unique users from localStorage
+  const merged = [
+    ...initialUsers,
+    ...parsed.filter(
+      su => !initialUsers.some(iu => iu.username === su.username) // avoid duplicates
+    ),
+  ];
+
+    localStorage.setItem("users", JSON.stringify(merged));
+    return merged;
   });
 
-  const [user, setUser] = useState<string | null>(() => localStorage.getItem("user"));
-  const [role, setRole] = useState<Role>(() => (localStorage.getItem("role") as Role) || null);
+
+  const [user, setUser] = useState<string | null>(localStorage.getItem("user"));
+  const [role, setRole] = useState<Role>((localStorage.getItem("role") as Role) || null);
   const [roleId, setRoleId] = useState<number | null>(() => {
     const stored = localStorage.getItem("roleId");
     return stored ? parseInt(stored, 10) : null;
   });
 
-  // Persist changes to localStorage
+  // 🔹 Persist changes
   useEffect(() => localStorage.setItem("users", JSON.stringify(users)), [users]);
-  useEffect(() => user ? localStorage.setItem("user", user) : localStorage.removeItem("user"), [user]);
-  useEffect(() => role ? localStorage.setItem("role", role) : localStorage.removeItem("role"), [role]);
-  useEffect(() => roleId !== null ? localStorage.setItem("roleId", String(roleId)) : localStorage.removeItem("roleId"), [roleId]);
+  useEffect(() => (user ? localStorage.setItem("user", user) : localStorage.removeItem("user")), [user]);
+  useEffect(() => (role ? localStorage.setItem("role", role) : localStorage.removeItem("role")), [role]);
+  useEffect(
+    () => (roleId !== null ? localStorage.setItem("roleId", String(roleId)) : localStorage.removeItem("roleId")),
+    [roleId]
+  );
 
-  // Login function
+  // Login
   const login = (username: string, password: string) => {
     const found = users.find(u => u.username === username && u.password === password);
     if (found) {
@@ -80,27 +87,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem("roleId");
   };
 
-  // Create a new user
+  // CRUD
   const createUser = (newUser: UserType) => {
     const roleName = roleMap[newUser.roleId];
     setUsers(prev => [
       ...prev,
-      { ...newUser, id: prev.length + 1, role: roleName, isActive: true }
+      { ...newUser, id: prev.length + 1, role: roleName, isActive: true },
     ]);
   };
 
-  // Update an existing user
   const updateUser = (index: number, updated: Partial<UserType>) => {
     setUsers(prev =>
-      prev.map((u, i) => (i === index ? { ...u, ...updated, role: updated.roleId ? roleMap[updated.roleId] : u.role } : u))
+      prev.map((u, i) =>
+        i === index ? { ...u, ...updated, role: updated.roleId ? roleMap[updated.roleId] : u.role } : u
+      )
     );
   };
 
-  // Delete a user
   const deleteUser = (index: number) => setUsers(prev => prev.filter((_, i) => i !== index));
 
   return (
-    <AuthContext.Provider value={{ user, role, roleId, users, login, logout, createUser, updateUser, deleteUser }}>
+    <AuthContext.Provider
+      value={{ user, role, roleId, users, login, logout, createUser, updateUser, deleteUser }}
+    >
       {children}
     </AuthContext.Provider>
   );
