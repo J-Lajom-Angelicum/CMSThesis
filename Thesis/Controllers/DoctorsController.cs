@@ -23,20 +23,20 @@ namespace Thesis.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<DoctorReadDTO>>> GetDoctors()
         {
-            var Doctors = await _context.Doctors.ToListAsync();
-            return Ok(_mapper.Map<IEnumerable<DoctorReadDTO>>(Doctors));
+            var doctors = await _context.Doctors.ToListAsync();
+            return Ok(_mapper.Map<IEnumerable<DoctorReadDTO>>(doctors));
         }
 
         // GET: api/Doctors/5
         [HttpGet("{id}")]
         public async Task<ActionResult<DoctorReadDTO>> GetDoctor(int id)
         {
-            var Doctor = await _context.Doctors.FindAsync(id);
+            var doctor = await _context.Doctors.FindAsync(id);
 
-            if (Doctor == null)
+            if (doctor == null)
                 return NotFound();
 
-            return Ok(_mapper.Map<DoctorReadDTO>(Doctor));
+            return Ok(_mapper.Map<DoctorReadDTO>(doctor));
         }
 
 
@@ -44,24 +44,24 @@ namespace Thesis.Controllers
         [HttpPost]
         public async Task<ActionResult<DoctorReadDTO>> CreateDoctor(DoctorCreateDTO dto)
         {
-            var Doctor = _mapper.Map<Doctor>(dto);
-            _context.Doctors.Add(Doctor);
+            var doctor = _mapper.Map<Doctor>(dto);
+            _context.Doctors.Add(doctor);
             await _context.SaveChangesAsync();
 
-            var readDto = _mapper.Map<DoctorReadDTO>(Doctor);
-            return CreatedAtAction(nameof(GetDoctor), new { id = Doctor.DoctorId }, readDto);
+            var readDto = _mapper.Map<DoctorReadDTO>(doctor);
+            return CreatedAtAction(nameof(GetDoctor), new { id = doctor.DoctorId }, readDto);
         }
 
         // PUT: api/Doctors/5
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateDoctor(int id, DoctorUpdateDTO dto)
         {
-            var Doctor = await _context.Doctors.FindAsync(id);
+            var doctor = await _context.Doctors.FindAsync(id);
 
-            if (Doctor == null)
+            if (doctor == null)
                 return NotFound();
 
-            _mapper.Map(dto, Doctor);
+            _mapper.Map(dto, doctor);
             await _context.SaveChangesAsync();
 
             return NoContent();
@@ -71,12 +71,12 @@ namespace Thesis.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDoctor(int id)
         {
-            var Doctor = await _context.Doctors.FindAsync(id);
+            var doctor = await _context.Doctors.FindAsync(id);
 
-            if (Doctor == null)
+            if (doctor == null)
                 return NotFound();
 
-            _context.Doctors.Remove(Doctor);
+            _context.Doctors.Remove(doctor);
             await _context.SaveChangesAsync();
 
             return NoContent();

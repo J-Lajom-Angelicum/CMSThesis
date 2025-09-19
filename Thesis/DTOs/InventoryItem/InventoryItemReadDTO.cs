@@ -1,4 +1,6 @@
-﻿namespace Thesis.DTOs.InventoryItem
+﻿using Thesis.Models;
+
+namespace Thesis.DTOs.InventoryItem
 {
     public class InventoryItemReadDTO
     {
@@ -17,5 +19,6 @@
         public int? SupplierId { get; set; }
 
         public DateOnly DateAdded { get; set; }
+                                                                                                                                                                                                          
     }
 }

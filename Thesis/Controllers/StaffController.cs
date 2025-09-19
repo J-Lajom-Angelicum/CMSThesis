@@ -23,20 +23,20 @@ namespace Thesis.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<StaffReadDTO>>> GetStaffs()
         {
-            var Staffs = await _context.Staff.ToListAsync();
-            return Ok(_mapper.Map<IEnumerable<StaffReadDTO>>(Staffs));
+            var staffs = await _context.Staff.ToListAsync();
+            return Ok(_mapper.Map<IEnumerable<StaffReadDTO>>(staffs));
         }
 
         // GET: api/Staffs/5
         [HttpGet("{id}")]
         public async Task<ActionResult<StaffReadDTO>> GetStaff(int id)
         {
-            var Staff = await _context.Staff.FindAsync(id);
+            var staff = await _context.Staff.FindAsync(id);
 
-            if (Staff == null)
+            if (staff == null)
                 return NotFound();
 
-            return Ok(_mapper.Map<StaffReadDTO>(Staff));
+            return Ok(_mapper.Map<StaffReadDTO>(staff));
         }
 
 
@@ -44,24 +44,24 @@ namespace Thesis.Controllers
         [HttpPost]
         public async Task<ActionResult<StaffReadDTO>> CreateStaff(StaffCreateDTO dto)
         {
-            var Staff = _mapper.Map<Staff>(dto);
-            _context.Staff.Add(Staff);
+            var staff = _mapper.Map<Staff>(dto);
+            _context.Staff.Add(staff);
             await _context.SaveChangesAsync();
 
-            var readDto = _mapper.Map<StaffReadDTO>(Staff);
-            return CreatedAtAction(nameof(GetStaff), new { id = Staff.StaffId }, readDto);
+            var readDto = _mapper.Map<StaffReadDTO>(staff);
+            return CreatedAtAction(nameof(GetStaff), new { id = staff.StaffId }, readDto);
         }
 
         // PUT: api/Staffs/5
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateStaff(int id, StaffUpdateDTO dto)
         {
-            var Staff = await _context.Staff.FindAsync(id);
+            var staff = await _context.Staff.FindAsync(id);
 
-            if (Staff == null)
+            if (staff == null)
                 return NotFound();
 
-            _mapper.Map(dto, Staff);
+            _mapper.Map(dto, staff);
             await _context.SaveChangesAsync();
 
             return NoContent();
@@ -71,12 +71,12 @@ namespace Thesis.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteStaff(int id)
         {
-            var Staff = await _context.Staff.FindAsync(id);
+            var staff = await _context.Staff.FindAsync(id);
 
-            if (Staff == null)
+            if (staff == null)
                 return NotFound();
 
-            _context.Staff.Remove(Staff);
+            _context.Staff.Remove(staff);
             await _context.SaveChangesAsync();
 
             return NoContent();
