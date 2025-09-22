@@ -14,6 +14,8 @@
             public int ReorderLevel { get; set; }
 
             public int? SupplierId { get; set; }
+
+
         
     }
 }
