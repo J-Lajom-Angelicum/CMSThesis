@@ -1,39 +1,48 @@
-import { Nav } from "react-bootstrap";
+import { Nav, Button } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import "./Sidebar.css";
 
 export default function Sidebar() {
   const { roleId } = useAuth();
+  const { darkMode, toggleDarkMode } = useTheme();
 
   return (
-    <div className="sidebar bg-light p-3">
-      <h5 className="mb-4">Menu</h5>
+    <div className={`sidebar p-3 ${darkMode ? "sidebar-dark" : "sidebar-light"}`}>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h5 className="mb-0">Menu</h5>
+        <Button
+          size="sm"
+          variant={darkMode ? "light" : "dark"}
+          onClick={toggleDarkMode}
+        >
+          {darkMode ? "☀️" : "🌙"}
+        </Button>
+      </div>
+
       <Nav className="flex-column">
-
-        {/* Common links (all roles) */}
         <Nav.Link as={Link} to="/dashboard">Dashboard</Nav.Link>
-
-        {/* Role-specific links */}
-        {roleId === 1 && ( // Doctor
-          <>
-            <Nav.Link as={Link} to="/patients">Patients</Nav.Link>
-            <Nav.Link as={Link} to="/consultations">Consultations</Nav.Link>
-          </>
-        )}
-
-        {roleId === 2 && ( // Staff
+        {roleId === 1 && (
           <>
             <Nav.Link as={Link} to="/patients">Patients</Nav.Link>
             <Nav.Link as={Link} to="/appointments">Appointments</Nav.Link>
+            <Nav.Link as={Link} to="/consultations">Consultations</Nav.Link>
           </>
         )}
-
-        {roleId === 3 && ( // Admin
+        {roleId === 2 && (
+          <>
+            <Nav.Link as={Link} to="/patients">Patients</Nav.Link>
+            <Nav.Link as={Link} to="/appointments">Appointments</Nav.Link>
+            <Nav.Link as={Link} to="/consultations">Consultations</Nav.Link>
+          </>
+        )}
+        {roleId === 3 && (
           <>
             <Nav.Link as={Link} to="/create-user">User Management</Nav.Link>
             <Nav.Link as={Link} to="/patients">Patients</Nav.Link>
             <Nav.Link as={Link} to="/appointments">Appointments</Nav.Link>
+            <Nav.Link as={Link} to="/consultations">Consultations</Nav.Link>
           </>
         )}
       </Nav>

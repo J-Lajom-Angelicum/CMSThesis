@@ -1,5 +1,41 @@
+/* Base theme variables (light teal by default) */
+:root {
+  --bg-color: #f0fdfc;      /* light teal background */
+  --text-color: #003d3b;    /* dark teal text */
+  --card-bg: #ffffff;
+  --sidebar-bg: #e6f7f5;    /* soft light teal */
+  --sidebar-link: #004d47;
+  --sidebar-link-hover: #00897b;
+  --accent-color: #009688;  /* teal accent */
+}
+
+/* Dark teal theme */
+.dark-mode {
+  --bg-color: #002e2b;      /* deep teal */
+  --text-color: #e0f2f1;    /* light text */
+  --card-bg: #004d47;       /* darker teal for cards */
+  --sidebar-bg: #003d3b;    /* sidebar dark teal */
+  --sidebar-link: #80cbc4;
+  --sidebar-link-hover: #a7ffeb;
+  --accent-color: #26a69a;
+}
+
+/* Apply globally */
 body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background-color: #e0f7f7; /* light teal */
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+/* Sidebar example */
+.sidebar {
+  background-color: var(--sidebar-bg);
+}
+
+.sidebar .nav-link {
+  color: var(--sidebar-link);
+}
+
+.sidebar .nav-link:hover {
+  background-color: var(--sidebar-link-hover);
+  color: var(--bg-color);
 }

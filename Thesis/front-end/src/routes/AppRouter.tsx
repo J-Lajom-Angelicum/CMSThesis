@@ -15,6 +15,9 @@ import StaffDashboard from "../pages/Dashboard/StaffDashboard";
 import CreateUser from "../pages/Admin/CreateUser";
 import PatientList from "../pages/Doctor/PatientList";
 import PatientForm from "../pages/Doctor/PatientForm";
+import Consultations from "../pages/Doctor/Consultations";
+
+import Appointments from "../pages/Staff/Appointments";
 
 export default function AppRouter() {
   const { roleId } = useAuth();
@@ -77,6 +80,26 @@ export default function AppRouter() {
         element={
           <ProtectedRoute allowedRoles={[1, 3]}>
             <PatientForm mode="edit" />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Appointments (Admin + Staff + Doctor) */}
+      <Route
+        path="/appointments"
+        element={
+          <ProtectedRoute allowedRoles={[1, 2, 3]}>
+            <Appointments />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Consultations (Doctor + Admin + Staff) */}
+      <Route
+        path="/consultations"
+        element={
+          <ProtectedRoute allowedRoles={[1, 2, 3]}>
+            <Consultations />
           </ProtectedRoute>
         }
       />
