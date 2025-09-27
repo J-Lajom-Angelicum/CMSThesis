@@ -16,6 +16,17 @@ export default function CreateUser() {
 
   if (roleId !== 3) return <h4 className="text-danger">Access denied: Admins only</h4>;
 
+  // Reset form fields and cancel editing/creating
+  const resetForm = () => {
+    setUsername("");
+    setPassword("");
+    setName("");
+    setEmail("");
+    setContactNo("");
+    setUserRoleId(2);
+    setEditingIndex(null);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password) return;
@@ -33,9 +44,7 @@ export default function CreateUser() {
         role: roleName,
         isActive: true,
       });
-      setEditingIndex(null);
     } else {
-      // createUser(username, password, name, email, contactNo, userRoleId);
       createUser({
         username,
         password,
@@ -46,15 +55,9 @@ export default function CreateUser() {
         role: roleName,
         isActive: true,
       });
-
     }
 
-    setUsername("");
-    setPassword("");
-    setName("");
-    setEmail("");
-    setContactNo("");
-    setUserRoleId(2);
+    resetForm(); // clears form after create/update
   };
 
   const handleEdit = (index: number) => {
@@ -100,8 +103,12 @@ export default function CreateUser() {
           </Form.Select>
         </Form.Group>
 
-        <Button type="submit" className="me-2">{editingIndex !== null ? "Update" : "Create"}</Button>
-        {editingIndex !== null && <Button variant="secondary" onClick={() => setEditingIndex(null)}>Cancel</Button>}
+        <Button type="submit" className="me-2">
+          {editingIndex !== null ? "Update" : "Create"}
+        </Button>
+        <Button variant="secondary" onClick={resetForm}>
+          Cancel
+        </Button>
       </Form>
 
       <hr />

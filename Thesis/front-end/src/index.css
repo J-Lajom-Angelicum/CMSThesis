@@ -39,3 +39,97 @@ body {
   background-color: var(--sidebar-link-hover);
   color: var(--bg-color);
 }
+
+/* Base modal */
+.modal-content {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.2);
+}
+
+/* Inputs inside modal */
+.modal-content input,
+.modal-content select,
+.modal-content textarea {
+  background-color: #fff; /* always readable */
+  color: #000;
+}
+
+/* Dark mode modal */
+.dark-mode .modal-content {
+  background-color: #003d3b; /* dark teal */
+  color: #e0f2f1;
+}
+
+.dark-mode .modal-content input,
+.dark-mode .modal-content select,
+.dark-mode .modal-content textarea {
+  background-color: #004d47; /* darker teal input */
+  color: #e0f2f1;
+  border: 1px solid #26a69a;
+}
+
+/* FORMS*/
+
+/* Form container (card look) */
+.form-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--accent-color);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Labels */
+.form-label {
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+/* Inputs, selects, textarea */
+.form-control {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  border: 1px solid var(--accent-color);
+  border-radius: 6px;
+}
+
+.form-control:focus {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 0.2rem rgba(0, 150, 136, 0.25); /* teal glow */
+}
+
+/* Button overrides */
+.btn-primary {
+  background-color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.btn-primary:hover {
+  background-color: var(--sidebar-link-hover);
+  border-color: var(--sidebar-link-hover);
+  color: var(--bg-color);
+}
+
+/* TABLES*/
+.table {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border: 1px solid var(--accent-color);
+}
+
+.table th {
+  background-color: var(--accent-color);
+  color: #fff;
+}
+
+.table td {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  vertical-align: middle;
+}
+
