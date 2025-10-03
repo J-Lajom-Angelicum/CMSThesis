@@ -13,11 +13,15 @@ import DoctorDashboard from "../pages/Dashboard/DoctorDashboard";
 import StaffDashboard from "../pages/Dashboard/StaffDashboard";
 
 import CreateUser from "../pages/Admin/CreateUser";
+import QueueEntries from "../pages/Admin/QueueEntries";
+
 import PatientList from "../pages/Doctor/PatientList";
 import PatientForm from "../pages/Doctor/PatientForm";
 import Consultations from "../pages/Doctor/Consultations";
 
 import Appointments from "../pages/Staff/Appointments";
+import Payments from "../pages/Staff/Payments";
+
 
 export default function AppRouter() {
   const { roleId } = useAuth();
@@ -100,6 +104,26 @@ export default function AppRouter() {
         element={
           <ProtectedRoute allowedRoles={[1, 2, 3]}>
             <Consultations />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Queue Entries (Admin + Staff + Doctor) */}
+      <Route
+        path="/queue-entries"
+        element={
+          <ProtectedRoute allowedRoles={[1, 2, 3]}>
+            <QueueEntries />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Payments (Admin + Staff + Doctor) */}
+      <Route
+        path="/payments"
+        element={
+          <ProtectedRoute allowedRoles={[1, 2, 3]}>
+            <Payments />
           </ProtectedRoute>
         }
       />

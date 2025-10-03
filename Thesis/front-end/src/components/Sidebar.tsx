@@ -28,6 +28,8 @@ export default function Sidebar() {
             <Nav.Link as={Link} to="/patients">Patients</Nav.Link>
             <Nav.Link as={Link} to="/appointments">Appointments</Nav.Link>
             <Nav.Link as={Link} to="/consultations">Consultations</Nav.Link>
+            <Nav.Link as={Link} to="/queue-entries">Queue Entries</Nav.Link>
+            <Nav.Link as={Link} to="/payments">Payments</Nav.Link>
           </>
         )}
         {roleId === 2 && (
@@ -35,6 +37,8 @@ export default function Sidebar() {
             <Nav.Link as={Link} to="/patients">Patients</Nav.Link>
             <Nav.Link as={Link} to="/appointments">Appointments</Nav.Link>
             <Nav.Link as={Link} to="/consultations">Consultations</Nav.Link>
+            <Nav.Link as={Link} to="/queue-entries">Queue Entries</Nav.Link>
+            <Nav.Link as={Link} to="/payments">Payments</Nav.Link>
           </>
         )}
         {roleId === 3 && (
@@ -43,6 +47,8 @@ export default function Sidebar() {
             <Nav.Link as={Link} to="/patients">Patients</Nav.Link>
             <Nav.Link as={Link} to="/appointments">Appointments</Nav.Link>
             <Nav.Link as={Link} to="/consultations">Consultations</Nav.Link>
+            <Nav.Link as={Link} to="/queue-entries">Queue Entries</Nav.Link>
+            <Nav.Link as={Link} to="/payments">Payments</Nav.Link>
           </>
         )}
       </Nav>

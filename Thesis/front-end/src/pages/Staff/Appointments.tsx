@@ -1,18 +1,9 @@
 // src/pages/Staff/Appointments.tsx
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Table, Button, Modal, Form, Alert } from "react-bootstrap";
 import { useAuth } from "../../context/AuthContext";
-
-type AppointmentStatus = "Booked" | "CheckedIn" | "Cancelled" | "NoShow" | "Completed";
-
-type Appointment = {
-  appointmentId: number;
-  patientId: number;
-  doctorId: number;
-  appointmentDateTime: string;
-  appointmentStatus: AppointmentStatus;
-  notes?: string;
-};
+import type { Appointment, AppointmentStatus } from "../../data/appointments";
+import type { QueueEntry } from "../../data/queue";
 
 export default function Appointments() {
   const { role, user, users } = useAuth();
@@ -24,32 +15,27 @@ export default function Appointments() {
   const isStaff = role === "STAFF";
   const isDoctor = role === "DOCTOR";
 
-  // initial data
+  // --- Local storage load ---
   const [appointments, setAppointments] = useState<Appointment[]>(() => {
-    const docIds = users.filter(u => u.role === "DOCTOR").map(u => u.id);
-    const docA = docIds[0] ?? 201;
-    const docB = docIds[1] ?? (docA === 201 ? 202 : 201);
-
-    return [
-      {
-        appointmentId: 1,
-        patientId: 101,
-        doctorId: docA,
-        appointmentDateTime: "2025-09-30T09:00",
-        appointmentStatus: "Booked",
-        notes: "Follow-up checkup",
-      },
-      {
-        appointmentId: 2,
-        patientId: 102,
-        doctorId: docB,
-        appointmentDateTime: "2025-10-01T14:00",
-        appointmentStatus: "CheckedIn",
-        notes: "Initial consultation",
-      },
-    ];
+    const saved = localStorage.getItem("appointments");
+    return saved ? JSON.parse(saved) : [];
   });
 
+  const [queue, setQueue] = useState<QueueEntry[]>(() => {
+    const saved = localStorage.getItem("queue");
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // --- Sync to localStorage ---
+  useEffect(() => {
+    localStorage.setItem("appointments", JSON.stringify(appointments));
+  }, [appointments]);
+
+  useEffect(() => {
+    localStorage.setItem("queue", JSON.stringify(queue));
+  }, [queue]);
+
+  // --- Modal state ---
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
@@ -61,7 +47,6 @@ export default function Appointments() {
     notes: "",
   });
 
-  // safe typing for input/select/textarea
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
@@ -76,7 +61,7 @@ export default function Appointments() {
     return appointments;
   }, [appointments, isDoctor, currentUserId]);
 
-  // add or update
+  // --- Save appointment (new or edit) ---
   const handleSave = () => {
     if (editingId) {
       setAppointments(prev =>
@@ -98,17 +83,27 @@ export default function Appointments() {
         appointments.length > 0
           ? Math.max(...appointments.map(a => a.appointmentId)) + 1
           : 1;
-      setAppointments(prev => [
-        ...prev,
-        {
-          appointmentId: nextId,
-          patientId: Number(formData.patientId),
-          doctorId: Number(formData.doctorId),
-          appointmentDateTime: formData.appointmentDateTime,
-          appointmentStatus: formData.appointmentStatus,
-          notes: formData.notes,
-        },
-      ]);
+      const newAppointment: Appointment = {
+        appointmentId: nextId,
+        patientId: Number(formData.patientId),
+        doctorId: Number(formData.doctorId),
+        appointmentDateTime: formData.appointmentDateTime,
+        appointmentStatus: formData.appointmentStatus,
+        notes: formData.notes,
+      };
+
+      setAppointments(prev => [...prev, newAppointment]);
+
+      // also push into queue
+      const newQueue: QueueEntry = {
+        queueEntryId: queue.length > 0 ? Math.max(...queue.map(q => q.queueEntryId)) + 1 : 1,
+        patientId: newAppointment.patientId,
+        appointmentId: newAppointment.appointmentId,
+        doctorId: newAppointment.doctorId,
+        status: "Waiting",
+        createdAt: new Date().toISOString(),
+      };
+      setQueue(prev => [...prev, newQueue]);
     }
 
     setShowModal(false);
@@ -140,12 +135,22 @@ export default function Appointments() {
         a.appointmentId === id ? { ...a, appointmentStatus: "Cancelled" } : a
       )
     );
+    setQueue(prev =>
+      prev.map(q =>
+        q.appointmentId === id ? { ...q, status: "Skipped" } : q
+      )
+    );
   };
 
   const handleComplete = (id: number) => {
     setAppointments(prev =>
       prev.map(a =>
         a.appointmentId === id ? { ...a, appointmentStatus: "Completed" } : a
+      )
+    );
+    setQueue(prev =>
+      prev.map(q =>
+        q.appointmentId === id ? { ...q, status: "Done" } : q
       )
     );
   };
