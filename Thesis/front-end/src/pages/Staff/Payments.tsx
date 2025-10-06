@@ -35,7 +35,7 @@ export default function Payments() {
     paymentReason: "",
   });
 
-  // ✅ fixed handler
+  // fixed handler
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {

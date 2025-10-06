@@ -1,4 +1,5 @@
 import { Container, Row, Col, Card } from "react-bootstrap";
+import InventoryCard from "../Admin/InventoryCard";
 
 export default function AdminDashboard() {
   return (
@@ -10,31 +11,20 @@ export default function AdminDashboard() {
           <Card className="shadow-sm">
             <Card.Body>
               <Card.Title>User Management</Card.Title>
-              <Card.Text>
-                Create, update, or remove user accounts and assign roles.
-              </Card.Text>
+              <Card.Text>Manage users and roles.</Card.Text>
             </Card.Body>
           </Card>
         </Col>
 
         <Col md={4} className="mb-3">
-          <Card className="shadow-sm">
-            <Card.Body>
-              <Card.Title>System Settings</Card.Title>
-              <Card.Text>
-                Configure clinic system preferences and access controls.
-              </Card.Text>
-            </Card.Body>
-          </Card>
+          <InventoryCard /> {/* ✅ Inventory summary */}
         </Col>
 
         <Col md={4} className="mb-3">
           <Card className="shadow-sm">
             <Card.Body>
               <Card.Title>Reports & Analytics</Card.Title>
-              <Card.Text>
-                Generate and review system-wide usage and performance reports.
-              </Card.Text>
+              <Card.Text>Access detailed system reports.</Card.Text>
             </Card.Body>
           </Card>
         </Col>

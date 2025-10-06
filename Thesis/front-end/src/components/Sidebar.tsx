@@ -47,6 +47,14 @@ export default function Sidebar() {
             <Nav.Link as={Link} to="/payments">Payments</Nav.Link>
             <Nav.Link as={Link} to="/lab-orders">Lab Orders</Nav.Link>
             <Nav.Link as={Link} to="/lab-results">Lab Results</Nav.Link>
+
+            {/* Inventory Management */}
+            <Nav.Link as={Link} to="/inventory-summary">Inventory Summary</Nav.Link>
+            <Nav.Link as={Link} to="/inventory-batches">Inventory Batches</Nav.Link>
+            <Nav.Link as={Link} to="/inventory-usage">Inventory Usage</Nav.Link>
+            <Nav.Link as={Link} to="/inventory-transactions">Inventory Transactions</Nav.Link>
+            <Nav.Link as={Link} to="/inventory-items">Inventory</Nav.Link>
+            <Nav.Link as={Link} to="/suppliers">Suppliers</Nav.Link>
           </>
         )}
 
@@ -61,6 +69,14 @@ export default function Sidebar() {
             <Nav.Link as={Link} to="/payments">Payments</Nav.Link>
             <Nav.Link as={Link} to="/lab-orders">Lab Orders</Nav.Link>
             <Nav.Link as={Link} to="/lab-results">Lab Results</Nav.Link>
+
+            {/* Inventory Management */}
+            <Nav.Link as={Link} to="/inventory-summary">Inventory Summary</Nav.Link>
+            <Nav.Link as={Link} to="/inventory-batches">Inventory Batches</Nav.Link>
+            <Nav.Link as={Link} to="/inventory-usage">Inventory Usage</Nav.Link>
+            <Nav.Link as={Link} to="/inventory-transactions">Inventory Transactions</Nav.Link>
+            <Nav.Link as={Link} to="/inventory-items">Inventory</Nav.Link>
+            <Nav.Link as={Link} to="/suppliers">Suppliers</Nav.Link>
           </>
         )}
       </Nav>
