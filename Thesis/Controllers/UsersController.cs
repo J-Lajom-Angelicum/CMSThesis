@@ -73,11 +73,22 @@ namespace Thesis.Controllers
         public async Task<IActionResult> UpdateUser(int id, UserUpdateDTO dto)
         {
             var User = await _context.Users.FindAsync(id);
-
             if (User == null)
                 return NotFound();
 
-            _mapper.Map(dto, User);
+            // Update only if value is provided
+            if (!string.IsNullOrWhiteSpace(dto.Email))
+                User.Email = dto.Email;
+
+            if (!string.IsNullOrWhiteSpace(dto.ContactNo))
+                User.ContactNo = dto.ContactNo;
+
+            User.RoleId = dto.RoleId;
+            User.IsActive = dto.IsActive;
+
+            if (!string.IsNullOrWhiteSpace(dto.UserPassword))
+                User.UserPassword = dto.UserPassword; // optional: hash later
+
             await _context.SaveChangesAsync();
 
             return NoContent();
