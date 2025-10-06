@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Table, Button, Card, Row, Col, Alert } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
 
 type ExpiringItem = {
   itemName: string;
@@ -22,6 +23,8 @@ export default function InventorySummary() {
   const [expiringSoon, setExpiringSoon] = useState<ExpiringItem[]>([]);
   const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
   const [usageSummary, setUsageSummary] = useState<UsageSummary[]>([]);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Mock data (replace with your API calls later)
@@ -51,7 +54,13 @@ export default function InventorySummary() {
           <Card className="shadow-sm border-0">
             <Card.Header className="d-flex justify-content-between align-items-center bg-teal text-white">
               <strong>🧪 Expiring Soon</strong>
-              <Button variant="light" size="sm">View Batches</Button>
+              <Button
+                variant="light"
+                size="sm"
+                onClick={() => navigate("/inventory-batches")}
+              >
+                View Batches
+              </Button>
             </Card.Header>
             <Card.Body>
               {expiringSoon.length === 0 ? (
@@ -85,7 +94,13 @@ export default function InventorySummary() {
           <Card className="shadow-sm border-0">
             <Card.Header className="d-flex justify-content-between align-items-center bg-teal text-white">
               <strong>📉 Low Stock Items</strong>
-              <Button variant="light" size="sm">View Items</Button>
+              <Button
+                variant="light"
+                size="sm"
+                onClick={() => navigate("/inventory-items")}
+              >
+                View Items
+              </Button>
             </Card.Header>
             <Card.Body>
               {lowStock.length === 0 ? (
@@ -117,7 +132,13 @@ export default function InventorySummary() {
           <Card className="shadow-sm border-0">
             <Card.Header className="d-flex justify-content-between align-items-center bg-teal text-white">
               <strong>📦 Usage Summary</strong>
-              <Button variant="light" size="sm">View Usage</Button>
+              <Button
+                variant="light"
+                size="sm"
+                onClick={() => navigate("/inventory-usage")}
+              >
+                View Usage
+              </Button>
             </Card.Header>
             <Card.Body>
               {usageSummary.length === 0 ? (

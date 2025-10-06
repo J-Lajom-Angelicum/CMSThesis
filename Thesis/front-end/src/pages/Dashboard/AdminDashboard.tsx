@@ -17,7 +17,7 @@ export default function AdminDashboard() {
         </Col>
 
         <Col md={4} className="mb-3">
-          <InventoryCard /> {/* ✅ Inventory summary */}
+          <InventoryCard /> {/* Inventory summary */}
         </Col>
 
         <Col md={4} className="mb-3">

@@ -43,7 +43,7 @@ export default function InventoryCard() {
           variant="primary"
           size="sm"
           className="mt-2"
-          onClick={() => navigate("/inventory-dashboard")}
+          onClick={() => navigate("/inventory-summary")}
         >
           View Full Report
         </Button>
