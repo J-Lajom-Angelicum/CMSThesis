@@ -1,120 +1,102 @@
 // src/pages/Staff/Appointments.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Table, Button, Modal, Form, Alert } from "react-bootstrap";
-import { useAuth } from "../../context/AuthContext";
-import type { Appointment, AppointmentStatus } from "../../data/appointments";
-import type { QueueEntry } from "../../data/queue";
+import api from "../../api/axios";
+
+interface Patient {
+  patientId: number;
+  firstName: string;
+  lastName: string;
+}
+
+interface Doctor {
+  id: number;
+  firstName: string;
+  lastName: string;
+}
+
+interface Appointment {
+  appointmentId: number;
+  patientId: number;
+  patientFirstName: string;
+  patientLastName: string;
+  doctorId: number;
+  doctorFirstName: string;
+  doctorLastName: string;
+  appointmentDateTime: string;
+  appointmentStatus: string;
+  notes: string;
+}
 
 export default function Appointments() {
-  const { role, user, users } = useAuth();
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
 
-  const currentUser = users.find(u => u.username === user);
-  const currentUserId = currentUser?.id ?? null;
-
-  const isAdmin = role === "ADMIN";
-  const isStaff = role === "STAFF";
-  const isDoctor = role === "DOCTOR";
-
-  // --- Local storage load ---
-  const [appointments, setAppointments] = useState<Appointment[]>(() => {
-    const saved = localStorage.getItem("appointments");
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [queue, setQueue] = useState<QueueEntry[]>(() => {
-    const saved = localStorage.getItem("queue");
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  // --- Sync to localStorage ---
-  useEffect(() => {
-    localStorage.setItem("appointments", JSON.stringify(appointments));
-  }, [appointments]);
-
-  useEffect(() => {
-    localStorage.setItem("queue", JSON.stringify(queue));
-  }, [queue]);
-
-  // --- Modal state ---
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-
   const [formData, setFormData] = useState({
     patientId: "",
     doctorId: "",
     appointmentDateTime: "",
-    appointmentStatus: "Booked" as AppointmentStatus,
     notes: "",
   });
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => {
+  // Load patients, doctors, and appointments
+  const loadData = async () => {
+    try {
+      const [patientsRes, doctorsRes, appointmentsRes] = await Promise.all([
+        api.get("/patients"),
+        api.get("/users?role=DOCTOR"),
+        api.get("/appointments"),
+      ]);
+
+      setPatients(patientsRes.data);
+      setDoctors(doctorsRes.data);
+      setAppointments(appointmentsRes.data);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to load data.");
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<any>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const displayedAppointments = useMemo(() => {
-    if (isDoctor && currentUserId !== null) {
-      return appointments.filter(a => a.doctorId === currentUserId);
-    }
-    return appointments;
-  }, [appointments, isDoctor, currentUserId]);
-
-  // --- Save appointment (new or edit) ---
-  const handleSave = () => {
-    if (editingId) {
-      setAppointments(prev =>
-        prev.map(a =>
-          a.appointmentId === editingId
-            ? {
-                ...a,
-                patientId: Number(formData.patientId),
-                doctorId: Number(formData.doctorId),
-                appointmentDateTime: formData.appointmentDateTime,
-                appointmentStatus: formData.appointmentStatus,
-                notes: formData.notes,
-              }
-            : a
-        )
-      );
-    } else {
-      const nextId =
-        appointments.length > 0
-          ? Math.max(...appointments.map(a => a.appointmentId)) + 1
-          : 1;
-      const newAppointment: Appointment = {
-        appointmentId: nextId,
-        patientId: Number(formData.patientId),
-        doctorId: Number(formData.doctorId),
-        appointmentDateTime: formData.appointmentDateTime,
-        appointmentStatus: formData.appointmentStatus,
-        notes: formData.notes,
-      };
-
-      setAppointments(prev => [...prev, newAppointment]);
-
-      // also push into queue
-      const newQueue: QueueEntry = {
-        queueEntryId: queue.length > 0 ? Math.max(...queue.map(q => q.queueEntryId)) + 1 : 1,
-        patientId: newAppointment.patientId,
-        appointmentId: newAppointment.appointmentId,
-        doctorId: newAppointment.doctorId,
-        status: "Waiting",
-        createdAt: new Date().toISOString(),
-      };
-      setQueue(prev => [...prev, newQueue]);
+  const handleSave = async () => {
+    if (!formData.patientId || !formData.doctorId || !formData.appointmentDateTime) {
+      alert("Please fill required fields.");
+      return;
     }
 
-    setShowModal(false);
-    setEditingId(null);
-    setFormData({
-      patientId: "",
-      doctorId: "",
-      appointmentDateTime: "",
-      appointmentStatus: "Booked",
-      notes: "",
-    });
+    const dto = {
+      patientId: Number(formData.patientId),
+      doctorId: Number(formData.doctorId),
+      appointmentDateTime: formData.appointmentDateTime,
+      notes: formData.notes || null,
+    };
+
+    try {
+      if (editingId) {
+        await api.put(`/appointments/${editingId}`, dto);
+      } else {
+        await api.post("/appointments", dto);
+      }
+
+      await loadData();
+      setShowModal(false);
+      setEditingId(null);
+      setFormData({ patientId: "", doctorId: "", appointmentDateTime: "", notes: "" });
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.message || "Error saving appointment");
+    }
   };
 
   const handleEdit = (a: Appointment) => {
@@ -123,63 +105,28 @@ export default function Appointments() {
       patientId: String(a.patientId),
       doctorId: String(a.doctorId),
       appointmentDateTime: a.appointmentDateTime,
-      appointmentStatus: a.appointmentStatus,
-      notes: a.notes ?? "",
+      notes: a.notes,
     });
     setShowModal(true);
   };
 
-  const handleCancel = (id: number) => {
-    setAppointments(prev =>
-      prev.map(a =>
-        a.appointmentId === id ? { ...a, appointmentStatus: "Cancelled" } : a
-      )
-    );
-    setQueue(prev =>
-      prev.map(q =>
-        q.appointmentId === id ? { ...q, status: "Skipped" } : q
-      )
-    );
-  };
-
-  const handleComplete = (id: number) => {
-    setAppointments(prev =>
-      prev.map(a =>
-        a.appointmentId === id ? { ...a, appointmentStatus: "Completed" } : a
-      )
-    );
-    setQueue(prev =>
-      prev.map(q =>
-        q.appointmentId === id ? { ...q, status: "Done" } : q
-      )
-    );
+  const handleStatusChange = async (id: number, status: string) => {
+    try {
+      await api.put(`/appointments/${id}`, { appointmentStatus: status });
+      await loadData();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   return (
     <div className="container mt-4">
       <h2>Appointments</h2>
+      <Button variant="primary" className="mb-3" onClick={() => setShowModal(true)}>
+        + Book Appointment
+      </Button>
 
-      {(isAdmin || isStaff) && (
-        <Button
-          variant="primary"
-          className="mb-3"
-          onClick={() => {
-            setEditingId(null);
-            setFormData({
-              patientId: "",
-              doctorId: "",
-              appointmentDateTime: "",
-              appointmentStatus: "Booked",
-              notes: "",
-            });
-            setShowModal(true);
-          }}
-        >
-          + Book Appointment
-        </Button>
-      )}
-
-      {displayedAppointments.length === 0 ? (
+      {appointments.length === 0 ? (
         <Alert variant="info">No appointments to show.</Alert>
       ) : (
         <Table striped bordered hover responsive>
@@ -195,50 +142,32 @@ export default function Appointments() {
             </tr>
           </thead>
           <tbody>
-            {displayedAppointments.map(a => (
+            {appointments.map(a => (
               <tr key={a.appointmentId}>
                 <td>{a.appointmentId}</td>
-                <td>{a.patientId}</td>
-                <td>{a.doctorId}</td>
+                <td>{a.patientFirstName} {a.patientLastName}</td>
+                <td>{a.doctorFirstName} {a.doctorLastName}</td>
                 <td>{new Date(a.appointmentDateTime).toLocaleString()}</td>
                 <td>{a.appointmentStatus}</td>
                 <td>{a.notes}</td>
                 <td>
-                  {isDoctor &&
-                    currentUserId !== null &&
-                    a.doctorId === currentUserId &&
-                    a.appointmentStatus !== "Completed" && (
-                      <Button
-                        size="sm"
-                        variant="success"
-                        onClick={() => handleComplete(a.appointmentId)}
-                      >
-                        Mark Completed
-                      </Button>
-                    )}
-
-                  {(isAdmin || isStaff) &&
-                    a.appointmentStatus === "Booked" && (
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        className="ms-2"
-                        onClick={() => handleCancel(a.appointmentId)}
-                      >
-                        Cancel
-                      </Button>
-                    )}
-
-                  {(isAdmin || isStaff) && (
-                    <Button
-                      size="sm"
-                      variant="warning"
-                      className="ms-2"
-                      onClick={() => handleEdit(a)}
-                    >
-                      Edit
-                    </Button>
-                  )}
+                  <Button size="sm" variant="warning" onClick={() => handleEdit(a)}>Edit</Button>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    className="ms-2"
+                    onClick={() => handleStatusChange(a.appointmentId, "Cancelled")}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="success"
+                    className="ms-2"
+                    onClick={() => handleStatusChange(a.appointmentId, "Completed")}
+                  >
+                    Complete
+                  </Button>
                 </td>
               </tr>
             ))}
@@ -246,36 +175,35 @@ export default function Appointments() {
         </Table>
       )}
 
-      {/* Modal */}
+      {/* Modal for create/edit */}
       <Modal show={showModal} onHide={() => setShowModal(false)}>
         <Modal.Header closeButton>
-          <Modal.Title>
-            {editingId ? "Edit Appointment" : "Book Appointment"}
-          </Modal.Title>
+          <Modal.Title>{editingId ? "Edit Appointment" : "Book Appointment"}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form>
             <Form.Group className="mb-3">
-              <Form.Label>Patient ID</Form.Label>
-              <Form.Control
-                type="number"
-                name="patientId"
-                value={formData.patientId}
-                onChange={handleChange}
-              />
+              <Form.Label>Patient</Form.Label>
+              <Form.Select name="patientId" value={formData.patientId} onChange={handleChange}>
+                <option value="">Select Patient</option>
+                {patients.map(p => (
+                  <option key={p.patientId} value={p.patientId}>
+                    {p.firstName} {p.lastName}
+                  </option>
+                ))}
+              </Form.Select>
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>Doctor ID</Form.Label>
-              <Form.Control
-                type="number"
-                name="doctorId"
-                value={formData.doctorId}
-                onChange={handleChange}
-              />
-              <Form.Text className="text-muted">
-                Use a numeric doctor id (from users list).
-              </Form.Text>
+              <Form.Label>Doctor</Form.Label>
+              <Form.Select name="doctorId" value={formData.doctorId} onChange={handleChange}>
+                <option value="">Select Doctor</option>
+                {doctors.map(d => (
+                  <option key={d.id} value={d.id}>
+                    {d.firstName} {d.lastName}
+                  </option>
+                ))}
+              </Form.Select>
             </Form.Group>
 
             <Form.Group className="mb-3">
@@ -286,21 +214,6 @@ export default function Appointments() {
                 value={formData.appointmentDateTime}
                 onChange={handleChange}
               />
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Status</Form.Label>
-              <Form.Select
-                name="appointmentStatus"
-                value={formData.appointmentStatus}
-                onChange={handleChange}
-              >
-                <option value="Booked">Booked</option>
-                <option value="CheckedIn">CheckedIn</option>
-                <option value="Cancelled">Cancelled</option>
-                <option value="NoShow">NoShow</option>
-                <option value="Completed">Completed</option>
-              </Form.Select>
             </Form.Group>
 
             <Form.Group className="mb-3">
@@ -316,12 +229,8 @@ export default function Appointments() {
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
-            Close
-          </Button>
-          <Button variant="primary" onClick={handleSave}>
-            Save
-          </Button>
+          <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
+          <Button variant="primary" onClick={handleSave}>Save</Button>
         </Modal.Footer>
       </Modal>
     </div>

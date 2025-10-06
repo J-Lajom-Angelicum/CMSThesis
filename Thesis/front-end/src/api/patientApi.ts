@@ -1,0 +1,7 @@
+// api/patientApi.ts
+import api from "./axios";
+
+export const getPatients = async () => {
+  const res = await api.get("/patients");
+  return res.data;
+};
