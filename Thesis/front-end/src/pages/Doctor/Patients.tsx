@@ -1,21 +1,20 @@
-// src/pages/doctor/Patients.tsx
-import { useNavigate } from "react-router-dom";
-import PatientList from "./PatientList";
-import { Button } from "react-bootstrap";
+import { useState, useEffect } from "react";
+import api from "../../api/axios";
 
-export default function Patients() {
-  const navigate = useNavigate();
-
+export default function PatientList() {
+  const [patients, setPatients] = useState<any[]>([]);
+  
+  useEffect(() => {
+    api.get("/patients")
+      .then(res => setPatients(res.data))
+      .catch(err => console.error(err));
+  }, []);
+  
   return (
-    <div>
-      <h2>Patients</h2>
-      <PatientList />
-      
-      <div className="mt-3">
-        <Button variant="primary" onClick={() => navigate("/patients/new")}>
-          + Add Patient
-        </Button>
-      </div>
-    </div>
+    <ul>
+      {patients.map(p => (
+        <li key={p.patientId}>{p.firstName} {p.lastName}</li>
+      ))}
+    </ul>
   );
 }

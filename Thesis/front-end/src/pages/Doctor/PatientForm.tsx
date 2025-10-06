@@ -2,13 +2,9 @@
 import { useState, useEffect } from "react";
 import { Form, Button } from "react-bootstrap";
 import { useParams, useNavigate } from "react-router-dom";
-import {
-  type Patient,
-  type PatientGender,
-  loadPatients,
-  savePatients,
-  getPatientById,
-} from "../../data/patients";
+import api from "../../api/axios";
+
+type PatientGender = "M" | "F" | "O";
 
 interface PatientFormProps {
   mode?: "create" | "edit";
@@ -21,40 +17,38 @@ export default function PatientForm({ mode: propMode }: PatientFormProps) {
   const routeId = params.id ? Number(params.id) : undefined;
   const formMode: "create" | "edit" = propMode ?? (routeId ? "edit" : "create");
 
-  const existing = routeId ? getPatientById(routeId) : undefined;
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [patientSex, setPatientSex] = useState<PatientGender>("M");
+  const [contactNo, setContactNo] = useState("");
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(formMode === "edit");
 
-  const [firstName, setFirstName] = useState(existing?.firstName ?? "");
-  const [lastName, setLastName] = useState(existing?.lastName ?? "");
-  const [birthDate, setBirthDate] = useState(existing?.birthDate ?? "");
-  const [patientSex, setPatientSex] = useState<PatientGender>(
-    (existing?.patientSex as PatientGender) ?? "M"
-  );
-  const [contactNo, setContactNo] = useState(existing?.contactNo ?? "");
-  const [email, setEmail] = useState(existing?.email ?? "");
-
-  // If the existing patient loads later, sync state (useful if localStorage changed)
+  // Fetch patient data if editing
   useEffect(() => {
-    if (formMode === "edit" && existing) {
-      setFirstName(existing.firstName);
-      setLastName(existing.lastName);
-      setBirthDate(existing.birthDate);
-      setPatientSex(existing.patientSex);
-      setContactNo(existing.contactNo ?? "");
-      setEmail(existing.email ?? "");
+    if (formMode === "edit" && routeId) {
+      api
+        .get(`/patients/${routeId}`)
+        .then((res) => {
+          const data = res.data;
+          setFirstName(data.firstName);
+          setLastName(data.lastName);
+          setBirthDate(data.birthDate);
+          setPatientSex(data.patientSex);
+          setContactNo(data.contactNo ?? "");
+          setEmail(data.email ?? "");
+        })
+        .catch((err) => {
+          console.error(err);
+          alert("Failed to load patient data.");
+          navigate("/patients");
+        })
+        .finally(() => setLoading(false));
     }
-  }, [existing, formMode]);
+  }, [formMode, routeId, navigate]);
 
-  if (formMode === "edit" && routeId && !existing) {
-    return (
-      <div className="container mt-4">
-        <h2>Edit Patient</h2>
-        <p>Patient not found.</p>
-        <Button onClick={() => navigate("/patients")}>Back to list</Button>
-      </div>
-    );
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!firstName.trim() || !lastName.trim() || !birthDate) {
@@ -62,42 +56,36 @@ export default function PatientForm({ mode: propMode }: PatientFormProps) {
       return;
     }
 
-    if (formMode === "create") {
-      const all = loadPatients();
-      const newId =
-        all.length === 0 ? 1 : Math.max(...all.map((p) => p.patientID)) + 1;
-      const newPatient: Patient = {
-        patientID: newId,
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        birthDate,
-        patientSex,
-        contactNo: contactNo.trim() || undefined,
-        email: email.trim() || undefined,
-      };
-      const updated = [...all, newPatient];
-      savePatients(updated);
+    const patientDto = {
+      FirstName: firstName.trim(),
+      LastName: lastName.trim(),
+      BirthDate: birthDate,
+      PatientSex: patientSex,
+      ContactNo: contactNo.trim() || null,
+      Email: email.trim() || null,
+    };
+
+    try {
+      if (formMode === "create") {
+        await api.post("/patients", patientDto);
+        alert("Patient created successfully!");
+      } else if (formMode === "edit" && routeId) {
+        await api.put(`/patients/${routeId}`, patientDto);
+        alert("Patient updated successfully!");
+      }
+
       navigate("/patients");
-    } else {
-      // edit
-      const all = loadPatients();
-      const updated = all.map((p) =>
-        p.patientID === routeId
-          ? {
-              ...p,
-              firstName: firstName.trim(),
-              lastName: lastName.trim(),
-              birthDate,
-              patientSex,
-              contactNo: contactNo.trim() || undefined,
-              email: email.trim() || undefined,
-            }
-          : p
-      );
-      savePatients(updated);
-      navigate("/patients");
+    } catch (err: any) {
+      console.error(err);
+      const msg =
+        err.response?.data?.title ||
+        err.response?.data?.message ||
+        "An error occurred while saving the patient.";
+      alert(msg);
     }
   };
+
+  if (loading) return <p>Loading patient data...</p>;
 
   return (
     <div className="container mt-4">

@@ -1,23 +1,50 @@
-// src/pages/doctor/PatientList.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Table, Button } from "react-bootstrap";
 import { Link } from "react-router-dom";
-import { loadPatients, savePatients, type Patient } from "../../data/patients";
 import { useAuth } from "../../context/AuthContext";
+import api from "../../api/axios";
+
+interface Patient {
+  patientId: number;
+  firstName: string;
+  lastName: string;
+  contactNo?: string | null;
+  email?: string | null;
+  birthDate: string;
+  patientSex: string;
+}
 
 export default function PatientList() {
   const { role } = useAuth();
-  const [patients, setPatients] = useState<Patient[]>(() => loadPatients());
-
-  const handleDelete = (id: number) => {
-    if (role !== "ADMIN") return;
-    if (!confirm("Delete patient? This action cannot be undone.")) return;
-    const updated = patients.filter((p) => p.patientID !== id);
-    setPatients(updated);
-    savePatients(updated);
-  };
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const canCreateOrEdit = role === "ADMIN" || role === "DOCTOR";
+
+  // Fetch patients from API
+  useEffect(() => {
+    api
+      .get("/patients")
+      .then((res) => setPatients(res.data))
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleDelete = async (id: number) => {
+    if (role !== "ADMIN") return;
+    if (!confirm("Delete patient? This action cannot be undone.")) return;
+
+    try {
+      await api.delete(`/patients/${id}`);
+      setPatients((prev) => prev.filter((p) => p.patientId !== id));
+      alert("Patient deleted successfully.");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete patient.");
+    }
+  };
+
+  if (loading) return <p>Loading patients...</p>;
 
   return (
     <div className="container mt-4">
@@ -49,8 +76,8 @@ export default function PatientList() {
         </thead>
         <tbody>
           {patients.map((p) => (
-            <tr key={p.patientID}>
-              <td>{p.patientID}</td>
+            <tr key={p.patientId}>
+              <td>{p.patientId}</td>
               <td>
                 {p.firstName} {p.lastName}
               </td>
@@ -61,7 +88,7 @@ export default function PatientList() {
               <td>
                 {canCreateOrEdit && (
                   <Link
-                    to={`/patients/${p.patientID}/edit`}
+                    to={`/patients/${p.patientId}`}
                     className="btn btn-sm btn-warning me-2"
                   >
                     Edit
@@ -72,7 +99,7 @@ export default function PatientList() {
                   <Button
                     variant="danger"
                     size="sm"
-                    onClick={() => handleDelete(p.patientID)}
+                    onClick={() => handleDelete(p.patientId)}
                   >
                     Delete
                   </Button>
