@@ -20,6 +20,21 @@ namespace Thesis.Controllers
             _context = context;
             _mapper = mapper;
         }
+
+        // POST: api/Users/login
+        [HttpPost("login")]
+        public async Task<ActionResult<UserReadDTO>> Login(UserLoginDTO dto)
+        {
+            var User = await _context.Users
+                .FirstOrDefaultAsync(u => u.Username == dto.Username && u.UserPassword == dto.Password);
+
+            if (User == null)
+                return Unauthorized("Invalid credentials");
+
+            var readDto = _mapper.Map<UserReadDTO>(User);
+            return Ok(readDto);
+        }
+
         // GET: api/Users
         [HttpGet]
         public async Task<ActionResult<IEnumerable<UserReadDTO>>> GetUsers()
