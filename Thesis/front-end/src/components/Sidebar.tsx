@@ -23,6 +23,8 @@ export default function Sidebar() {
 
       <Nav className="flex-column">
         <Nav.Link as={Link} to="/dashboard">Dashboard</Nav.Link>
+
+        {/* Doctor */}
         {roleId === 1 && (
           <>
             <Nav.Link as={Link} to="/patients">Patients</Nav.Link>
@@ -30,8 +32,12 @@ export default function Sidebar() {
             <Nav.Link as={Link} to="/consultations">Consultations</Nav.Link>
             <Nav.Link as={Link} to="/queue-entries">Queue Entries</Nav.Link>
             <Nav.Link as={Link} to="/payments">Payments</Nav.Link>
+            <Nav.Link as={Link} to="/lab-orders">Lab Orders</Nav.Link>
+            <Nav.Link as={Link} to="/lab-results">Lab Results</Nav.Link>
           </>
         )}
+
+        {/* Staff */}
         {roleId === 2 && (
           <>
             <Nav.Link as={Link} to="/patients">Patients</Nav.Link>
@@ -39,8 +45,12 @@ export default function Sidebar() {
             <Nav.Link as={Link} to="/consultations">Consultations</Nav.Link>
             <Nav.Link as={Link} to="/queue-entries">Queue Entries</Nav.Link>
             <Nav.Link as={Link} to="/payments">Payments</Nav.Link>
+            <Nav.Link as={Link} to="/lab-orders">Lab Orders</Nav.Link>
+            <Nav.Link as={Link} to="/lab-results">Lab Results</Nav.Link>
           </>
         )}
+
+        {/* Admin */}
         {roleId === 3 && (
           <>
             <Nav.Link as={Link} to="/create-user">User Management</Nav.Link>
@@ -49,6 +59,8 @@ export default function Sidebar() {
             <Nav.Link as={Link} to="/consultations">Consultations</Nav.Link>
             <Nav.Link as={Link} to="/queue-entries">Queue Entries</Nav.Link>
             <Nav.Link as={Link} to="/payments">Payments</Nav.Link>
+            <Nav.Link as={Link} to="/lab-orders">Lab Orders</Nav.Link>
+            <Nav.Link as={Link} to="/lab-results">Lab Results</Nav.Link>
           </>
         )}
       </Nav>

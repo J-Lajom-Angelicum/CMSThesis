@@ -18,9 +18,12 @@ import QueueEntries from "../pages/Admin/QueueEntries";
 import PatientList from "../pages/Doctor/PatientList";
 import PatientForm from "../pages/Doctor/PatientForm";
 import Consultations from "../pages/Doctor/Consultations";
+import LabOrders from "../pages/Doctor/LabOrders";
+import LabResults from "../pages/Doctor/LabResults";
 
 import Appointments from "../pages/Staff/Appointments";
 import Payments from "../pages/Staff/Payments";
+
 
 
 export default function AppRouter() {
@@ -34,7 +37,7 @@ export default function AppRouter() {
       <Route path="/services" element={<Services />} />
       <Route path="/login" element={<Login />} />
 
-      {/* Generic dashboard that routes by role */}
+      {/* Generic dashboard (redirect by role) */}
       <Route
         path="/dashboard"
         element={
@@ -52,7 +55,7 @@ export default function AppRouter() {
         }
       />
 
-      {/* Admin-only tools */}
+      {/* Admin-only */}
       <Route
         path="/create-user"
         element={
@@ -62,7 +65,7 @@ export default function AppRouter() {
         }
       />
 
-      {/* Patient Management (Admin + Doctor + Staff) */}
+      {/* Patient Management */}
       <Route
         path="/patients"
         element={
@@ -88,7 +91,7 @@ export default function AppRouter() {
         }
       />
 
-      {/* Appointments (Admin + Staff + Doctor) */}
+      {/* Appointments */}
       <Route
         path="/appointments"
         element={
@@ -98,7 +101,7 @@ export default function AppRouter() {
         }
       />
 
-      {/* Consultations (Doctor + Admin + Staff) */}
+      {/* Consultations */}
       <Route
         path="/consultations"
         element={
@@ -108,7 +111,7 @@ export default function AppRouter() {
         }
       />
 
-      {/* Queue Entries (Admin + Staff + Doctor) */}
+      {/* Queue Entries */}
       <Route
         path="/queue-entries"
         element={
@@ -118,12 +121,33 @@ export default function AppRouter() {
         }
       />
 
-      {/* Payments (Admin + Staff + Doctor) */}
+      {/* Payments */}
       <Route
         path="/payments"
         element={
           <ProtectedRoute allowedRoles={[1, 2, 3]}>
             <Payments />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Lab Modules */}
+      {/* Lab Orders: Doctor (1) can create; Staff (2) process/encode; Admin (3) full access */}
+      <Route
+        path="/lab-orders"
+        element={
+          <ProtectedRoute allowedRoles={[1, 2, 3]}>
+            <LabOrders />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Lab Results: Doctor (1) view; Staff (2) enter; Admin (3) full access */}
+      <Route
+        path="/lab-results"
+        element={
+          <ProtectedRoute allowedRoles={[1, 2, 3]}>
+            <LabResults />
           </ProtectedRoute>
         }
       />
