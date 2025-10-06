@@ -21,7 +21,6 @@ export default function Login() {
       setError("Invalid username or password");
     }
   };
-
   
   return (
     <Card className="p-4 mx-auto" style={{ maxWidth: "400px" }}>

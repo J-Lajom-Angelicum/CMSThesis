@@ -133,3 +133,31 @@ body {
   vertical-align: middle;
 }
 
+/* CARDS */
+.card {
+  background-color: #e6f7f5; /* soft light teal instead of pure white */
+  color: var(--text-color);
+  border-radius: 10px;
+  border: 1px solid rgba(0, 150, 136, 0.2); /* soft teal border */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Card header */
+.card .card-header {
+  background-color: var(--accent-color);
+  color: #fff;
+  font-weight: 500;
+}
+
+/* Dark mode cards */
+.dark-mode .card {
+  background-color: var(--card-bg); /* darker teal in dark mode */
+  color: var(--text-color);
+  border: 1px solid #26a69a;
+}
+
+.dark-mode .card .card-header {
+  background-color: #26a69a;
+  color: #002e2b;
+}
+
