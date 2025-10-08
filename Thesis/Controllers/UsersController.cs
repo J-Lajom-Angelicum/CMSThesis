@@ -20,6 +20,21 @@ namespace Thesis.Controllers
             _context = context;
             _mapper = mapper;
         }
+
+        // POST: api/Users/login
+        [HttpPost("login")]
+        public async Task<ActionResult<UserReadDTO>> Login(UserLoginDTO dto)
+        {
+            var User = await _context.Users
+                .FirstOrDefaultAsync(u => u.Username == dto.Username && u.UserPassword == dto.Password);
+
+            if (User == null)
+                return Unauthorized("Invalid credentials");
+
+            var readDto = _mapper.Map<UserReadDTO>(User);
+            return Ok(readDto);
+        }
+
         // GET: api/Users
         [HttpGet]
         public async Task<ActionResult<IEnumerable<UserReadDTO>>> GetUsers()
@@ -58,11 +73,22 @@ namespace Thesis.Controllers
         public async Task<IActionResult> UpdateUser(int id, UserUpdateDTO dto)
         {
             var User = await _context.Users.FindAsync(id);
-
             if (User == null)
                 return NotFound();
 
-            _mapper.Map(dto, User);
+            // Update only if value is provided
+            if (!string.IsNullOrWhiteSpace(dto.Email))
+                User.Email = dto.Email;
+
+            if (!string.IsNullOrWhiteSpace(dto.ContactNo))
+                User.ContactNo = dto.ContactNo;
+
+            User.RoleId = dto.RoleId;
+            User.IsActive = dto.IsActive;
+
+            if (!string.IsNullOrWhiteSpace(dto.UserPassword))
+                User.UserPassword = dto.UserPassword; // optional: hash later
+
             await _context.SaveChangesAsync();
 
             return NoContent();

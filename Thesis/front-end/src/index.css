@@ -1,5 +1,163 @@
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background-color: #e0f7f7; /* light teal */
+/* Base theme variables (light teal by default) */
+:root {
+  --bg-color: #f0fdfc;      /* light teal background */
+  --text-color: #003d3b;    /* dark teal text */
+  --card-bg: #ffffff;
+  --sidebar-bg: #e6f7f5;    /* soft light teal */
+  --sidebar-link: #004d47;
+  --sidebar-link-hover: #00897b;
+  --accent-color: #009688;  /* teal accent */
 }
+
+/* Dark teal theme */
+.dark-mode {
+  --bg-color: #002e2b;      /* deep teal */
+  --text-color: #e0f2f1;    /* light text */
+  --card-bg: #004d47;       /* darker teal for cards */
+  --sidebar-bg: #003d3b;    /* sidebar dark teal */
+  --sidebar-link: #80cbc4;
+  --sidebar-link-hover: #a7ffeb;
+  --accent-color: #26a69a;
+}
+
+/* Apply globally */
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+/* Sidebar example */
+.sidebar {
+  background-color: var(--sidebar-bg);
+}
+
+.sidebar .nav-link {
+  color: var(--sidebar-link);
+}
+
+.sidebar .nav-link:hover {
+  background-color: var(--sidebar-link-hover);
+  color: var(--bg-color);
+}
+
+/* Base modal */
+.modal-content {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.2);
+}
+
+/* Inputs inside modal */
+.modal-content input,
+.modal-content select,
+.modal-content textarea {
+  background-color: #fff; /* always readable */
+  color: #000;
+}
+
+/* Dark mode modal */
+.dark-mode .modal-content {
+  background-color: #003d3b; /* dark teal */
+  color: #e0f2f1;
+}
+
+.dark-mode .modal-content input,
+.dark-mode .modal-content select,
+.dark-mode .modal-content textarea {
+  background-color: #004d47; /* darker teal input */
+  color: #e0f2f1;
+  border: 1px solid #26a69a;
+}
+
+/* FORMS*/
+
+/* Form container (card look) */
+.form-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--accent-color);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Labels */
+.form-label {
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+/* Inputs, selects, textarea */
+.form-control {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  border: 1px solid var(--accent-color);
+  border-radius: 6px;
+}
+
+.form-control:focus {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 0.2rem rgba(0, 150, 136, 0.25); /* teal glow */
+}
+
+/* Button overrides */
+.btn-primary {
+  background-color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.btn-primary:hover {
+  background-color: var(--sidebar-link-hover);
+  border-color: var(--sidebar-link-hover);
+  color: var(--bg-color);
+}
+
+/* TABLES*/
+.table {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border: 1px solid var(--accent-color);
+}
+
+.table th {
+  background-color: var(--accent-color);
+  color: #fff;
+}
+
+.table td {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  vertical-align: middle;
+}
+
+/* CARDS */
+.card {
+  background-color: #e6f7f5; /* soft light teal instead of pure white */
+  color: var(--text-color);
+  border-radius: 10px;
+  border: 1px solid rgba(0, 150, 136, 0.2); /* soft teal border */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Card header */
+.card .card-header {
+  background-color: var(--accent-color);
+  color: #fff;
+  font-weight: 500;
+}
+
+/* Dark mode cards */
+.dark-mode .card {
+  background-color: var(--card-bg); /* darker teal in dark mode */
+  color: var(--text-color);
+  border: 1px solid #26a69a;
+}
+
+.dark-mode .card .card-header {
+  background-color: #26a69a;
+  color: #002e2b;
+}
+

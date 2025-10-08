@@ -1,22 +1,19 @@
-import { type ReactNode, useEffect } from "react";
-import { Container, Navbar, Nav, Image } from "react-bootstrap";
+// src/components/MainLayout.tsx
+import { type ReactNode } from "react";
+import { Container, Navbar, Nav, Image, Button } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import Sidebar from "./Sidebar";
 import "./MainLayout.css";
 
 export default function MainLayout({ children }: { children: ReactNode }) {
   const { role, roleId, logout } = useAuth();
 
-  // Debugging: check the role and roleId every render
-  useEffect(() => {
-    console.log("Logged-in Role:", role, "RoleId:", roleId);
-  }, [role, roleId]);
-
   return (
     <>
-      <Navbar bg="dark" variant="dark" expand="lg">
+      {/* Navbar */}
+      <Navbar bg="dark" variant="dark" expand="lg" fixed="top">
         <Container>
-          {/* Logo + Name */}
           <Navbar.Brand as={Link} to="/" className="d-flex align-items-center">
             <Image
               src="src/assets/logo.png"
@@ -34,21 +31,33 @@ export default function MainLayout({ children }: { children: ReactNode }) {
               <Nav.Link as={Link} to="/about">About Us</Nav.Link>
               <Nav.Link as={Link} to="/services">Services</Nav.Link>
               {!role && <Nav.Link as={Link} to="/login">Login</Nav.Link>}
-              {roleId === 3 && role && (
-                <Nav.Link as={Link} to="/create-user">Create Users</Nav.Link>
-              )}
             </Nav>
+
             {role && (
               <Nav>
                 <Navbar.Text className="me-3">Signed in as: {role}</Navbar.Text>
-                <Nav.Link onClick={logout}>Logout</Nav.Link>
+                <Button variant="outline-light" size="sm" onClick={logout}>
+                  Logout
+                </Button>
               </Nav>
             )}
           </Navbar.Collapse>
         </Container>
       </Navbar>
 
-      <Container className="mt-4">{children}</Container>
+      {/* Main layout: Sidebar + Content */}
+      <div className="d-flex" style={{ marginTop: "56px" }}>
+        {role && <Sidebar />} {/* Sidebar visible only when logged in */}
+        <div
+          className="content flex-grow-1"
+          style={{
+            marginLeft: role ? "220px" : "0", // space for sidebar
+            padding: "20px",
+          }}
+        >
+          <Container>{children}</Container>
+        </div>
+      </div>
     </>
   );
 }

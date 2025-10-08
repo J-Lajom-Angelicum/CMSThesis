@@ -1,0 +1,52 @@
+/* src/pages/Pages.css */
+
+/* Wrapper for all static pages (Home, About, Services) */
+.page-container {
+  padding: 40px 20px; /* breathing room */
+  text-align: center; /* landing-style pages */
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+/* Title styling */
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 15px;
+  color: var(--text-color); /* matches theme */
+}
+
+/* Subtitle / description */
+.page-subtitle {
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: var(--accent-color); /* highlight with accent teal */
+  margin-bottom: 25px;
+}
+
+/* Body text */
+.page-content {
+  font-size: 1rem;
+  line-height: 1.6;
+  max-width: 700px;
+  margin: 0 auto;
+  color: var(--text-color);
+}
+
+/* Card overrides for teal theme */
+.card {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border: 1px solid var(--accent-color);
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.card-title {
+  color: var(--accent-color);
+  font-weight: 600;
+}
+
+.card-text {
+  color: var(--text-color);
+}

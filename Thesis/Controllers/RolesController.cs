@@ -22,17 +22,17 @@ namespace Thesis.Controllers
 
         // GET: api/Roles
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<RoleReadDTO>>> GetPatients()
+        public async Task<ActionResult<IEnumerable<RoleReadDTO>>> GetRoles()
         {
-            var roles = await _context.Patients.ToListAsync();
+            var roles = await _context.Roles.ToListAsync();
             return Ok(_mapper.Map<IEnumerable<RoleReadDTO>>(roles));
         }
 
         // GET: api/Roles/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<RoleReadDTO>> GetPatient(int id)
+        public async Task<ActionResult<RoleReadDTO>> GetRole(int id)
         {
-            var role = await _context.Patients.FindAsync(id);
+            var role = await _context.Roles.FindAsync(id);
 
             if (role == null)
                 return NotFound();
