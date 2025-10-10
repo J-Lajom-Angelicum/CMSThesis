@@ -21,16 +21,16 @@ namespace Thesis.Controllers
             _mapper = mapper;
         }
 
-        // GET: api/Appointment
+        // GET: api/Appointments
         [HttpGet]
         public async Task<ActionResult<IEnumerable<AppointmentReadDTO>>> GetAppointments()
         {
-            var appointment = await _context.Appointments
+            var appointments = await _context.Appointments
                 .Include(a => a.Patient)
                 .Include(a => a.Doctor)
                 .ToListAsync();
 
-            return Ok(_mapper.Map<IEnumerable<AppointmentReadDTO>>(appointment));
+            return Ok(_mapper.Map<IEnumerable<AppointmentReadDTO>>(appointments));
         }
 
         // GET: api/Appointments/5
@@ -50,36 +50,37 @@ namespace Thesis.Controllers
 
         // POST: api/Appointments
         [HttpPost]
-        public async Task<ActionResult<AppointmentReadDTO>> CreateAppointment([FromBody]AppointmentCreateDTO dto)
+        public async Task<ActionResult<AppointmentReadDTO>> CreateAppointment([FromBody] AppointmentCreateDTO dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            //Check if Patient Exists
+            // Check if Patient exists
             var patient = await _context.Patients.FindAsync(dto.PatientId);
             if (patient == null)
                 return NotFound($"Patient with ID {dto.PatientId} not found.");
 
-            //Check if doctor exists
+            // Check if Doctor exists
             var doctor = await _context.Doctors.FindAsync(dto.DoctorId);
             if (doctor == null)
                 return NotFound($"Doctor with ID {dto.DoctorId} not found.");
 
-            //Validate date
+            // Validate appointment date
             if (dto.AppointmentDateTime < DateTime.Now)
-                return BadRequest("Appointment Date cannot be in the past.");
+                return BadRequest("Appointment date cannot be in the past.");
 
-
+            // ✅ Fix: Set default status to "Booked"
             var appointment = _mapper.Map<Appointment>(dto);
+            appointment.AppointmentStatus = "Booked";
+
             _context.Appointments.Add(appointment);
             await _context.SaveChangesAsync();
 
             var readDTO = _mapper.Map<AppointmentReadDTO>(appointment);
-            return CreatedAtAction(nameof(GetAppointment), new {id = appointment.AppointmentId},  readDTO);
+            return CreatedAtAction(nameof(GetAppointment), new { id = appointment.AppointmentId }, readDTO);
         }
 
-
-        //PUT: api/Appointments/5
+        // PUT: api/Appointments/5
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateAppointment(int id, AppointmentUpdateDTO dto)
         {
@@ -89,12 +90,20 @@ namespace Thesis.Controllers
                 return NotFound();
 
             _mapper.Map(dto, appointment);
+
+            // ✅ Preserve status if none provided
+            if (string.IsNullOrEmpty(dto.AppointmentStatus))
+            {
+                _context.Entry(appointment).Property(a => a.AppointmentStatus).IsModified = false;
+            }
+
             await _context.SaveChangesAsync();
+
 
             return NoContent();
         }
 
-        //Delete: api/Appointments/5
+        // DELETE: api/Appointments/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAppointment(int id)
         {
@@ -108,6 +117,5 @@ namespace Thesis.Controllers
 
             return NoContent();
         }
-
     }
 }

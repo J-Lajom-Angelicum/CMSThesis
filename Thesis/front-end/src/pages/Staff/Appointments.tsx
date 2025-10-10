@@ -10,7 +10,7 @@ interface Patient {
 }
 
 interface Doctor {
-  id: number;
+  doctorId: number;
   firstName: string;
   lastName: string;
 }
@@ -32,9 +32,9 @@ export default function Appointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
-
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+
   const [formData, setFormData] = useState({
     patientId: "",
     doctorId: "",
@@ -42,12 +42,12 @@ export default function Appointments() {
     notes: "",
   });
 
-  // Load patients, doctors, and appointments
+  // Load all data
   const loadData = async () => {
     try {
       const [patientsRes, doctorsRes, appointmentsRes] = await Promise.all([
         api.get("/patients"),
-        api.get("/users?role=DOCTOR"),
+        api.get("/doctors"),
         api.get("/appointments"),
       ]);
 
@@ -69,9 +69,15 @@ export default function Appointments() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const resetForm = () => {
+    setFormData({ patientId: "", doctorId: "", appointmentDateTime: "", notes: "" });
+    setEditingId(null);
+    setShowModal(false);
+  };
+
   const handleSave = async () => {
     if (!formData.patientId || !formData.doctorId || !formData.appointmentDateTime) {
-      alert("Please fill required fields.");
+      alert("Please fill in all required fields.");
       return;
     }
 
@@ -90,12 +96,10 @@ export default function Appointments() {
       }
 
       await loadData();
-      setShowModal(false);
-      setEditingId(null);
-      setFormData({ patientId: "", doctorId: "", appointmentDateTime: "", notes: "" });
+      resetForm();
     } catch (err: any) {
       console.error(err);
-      alert(err.response?.data?.message || "Error saving appointment");
+      alert(err.response?.data?.message || "Error saving appointment.");
     }
   };
 
@@ -104,30 +108,43 @@ export default function Appointments() {
     setFormData({
       patientId: String(a.patientId),
       doctorId: String(a.doctorId),
-      appointmentDateTime: a.appointmentDateTime,
-      notes: a.notes,
+      appointmentDateTime: a.appointmentDateTime.slice(0, 16), // keep valid datetime-local format
+      notes: a.notes || "",
     });
     setShowModal(true);
   };
 
   const handleStatusChange = async (id: number, status: string) => {
     try {
-      await api.put(`/appointments/${id}`, { appointmentStatus: status });
+      const existing = appointments.find(a => a.appointmentId === id);
+      if (!existing) return alert("Appointment not found.");
+
+      const dto = {
+        patientId: existing.patientId,
+        doctorId: existing.doctorId,
+        appointmentDateTime: existing.appointmentDateTime,
+        notes: existing.notes,
+        appointmentStatus: status,
+      };
+
+      await api.put(`/appointments/${id}`, dto);
       await loadData();
     } catch (err) {
       console.error(err);
+      alert("Failed to update status.");
     }
   };
 
   return (
     <div className="container mt-4">
       <h2>Appointments</h2>
+
       <Button variant="primary" className="mb-3" onClick={() => setShowModal(true)}>
         + Book Appointment
       </Button>
 
       {appointments.length === 0 ? (
-        <Alert variant="info">No appointments to show.</Alert>
+        <Alert variant="info">No appointments available.</Alert>
       ) : (
         <Table striped bordered hover responsive>
           <thead>
@@ -147,11 +164,13 @@ export default function Appointments() {
                 <td>{a.appointmentId}</td>
                 <td>{a.patientFirstName} {a.patientLastName}</td>
                 <td>{a.doctorFirstName} {a.doctorLastName}</td>
-                <td>{new Date(a.appointmentDateTime).toLocaleString()}</td>
+                <td>{new Date(a.appointmentDateTime).toLocaleString() || "N/A"}</td>
                 <td>{a.appointmentStatus}</td>
-                <td>{a.notes}</td>
+                <td>{a.notes || "—"}</td>
                 <td>
-                  <Button size="sm" variant="warning" onClick={() => handleEdit(a)}>Edit</Button>
+                  <Button size="sm" variant="warning" onClick={() => handleEdit(a)}>
+                    Edit
+                  </Button>
                   <Button
                     size="sm"
                     variant="danger"
@@ -176,7 +195,7 @@ export default function Appointments() {
       )}
 
       {/* Modal for create/edit */}
-      <Modal show={showModal} onHide={() => setShowModal(false)}>
+      <Modal show={showModal} onHide={resetForm}>
         <Modal.Header closeButton>
           <Modal.Title>{editingId ? "Edit Appointment" : "Book Appointment"}</Modal.Title>
         </Modal.Header>
@@ -199,7 +218,7 @@ export default function Appointments() {
               <Form.Select name="doctorId" value={formData.doctorId} onChange={handleChange}>
                 <option value="">Select Doctor</option>
                 {doctors.map(d => (
-                  <option key={d.id} value={d.id}>
+                  <option key={d.doctorId} value={d.doctorId}>
                     {d.firstName} {d.lastName}
                   </option>
                 ))}
@@ -229,7 +248,7 @@ export default function Appointments() {
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
+          <Button variant="secondary" onClick={resetForm}>Close</Button>
           <Button variant="primary" onClick={handleSave}>Save</Button>
         </Modal.Footer>
       </Modal>
