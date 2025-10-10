@@ -55,30 +55,50 @@ namespace Thesis.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            // Check if Patient exists
+            // 🔍 Validate Patient
             var patient = await _context.Patients.FindAsync(dto.PatientId);
             if (patient == null)
                 return NotFound($"Patient with ID {dto.PatientId} not found.");
 
-            // Check if Doctor exists
+            // 🔍 Validate Doctor
             var doctor = await _context.Doctors.FindAsync(dto.DoctorId);
             if (doctor == null)
                 return NotFound($"Doctor with ID {dto.DoctorId} not found.");
 
-            // Validate appointment date
+            // 🕒 Validate Date
             if (dto.AppointmentDateTime < DateTime.Now)
                 return BadRequest("Appointment date cannot be in the past.");
 
-            // ✅ Fix: Set default status to "Booked"
+            // 🩺 Map DTO → Entity
             var appointment = _mapper.Map<Appointment>(dto);
-            appointment.AppointmentStatus = "Booked";
+            appointment.AppointmentStatus = "Booked"; // Default status
 
+            // ✅ Make sure the FK fields are set
+            appointment.PatientId = dto.PatientId;
+            appointment.DoctorId = dto.DoctorId;
+
+            // ✅ Save Appointment First
             _context.Appointments.Add(appointment);
             await _context.SaveChangesAsync();
 
+            // 🔁 Automatically create QueueEntry
+            var queueEntry = new QueueEntry
+            {
+                PatientId = appointment.PatientId,
+                AppointmentId = appointment.AppointmentId,
+                DoctorId = appointment.DoctorId,
+                Status = "Waiting",
+                CreatedAt = DateTime.Now
+            };
+
+            _context.QueueEntries.Add(queueEntry);
+            await _context.SaveChangesAsync();
+
+            // ✅ Return DTO
             var readDTO = _mapper.Map<AppointmentReadDTO>(appointment);
             return CreatedAtAction(nameof(GetAppointment), new { id = appointment.AppointmentId }, readDTO);
         }
+
 
         // PUT: api/Appointments/5
         [HttpPut("{id}")]

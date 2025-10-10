@@ -1,53 +1,44 @@
-// src/pages/Staff/QueueEntries.tsx
 import { useEffect, useState } from "react";
 import { Table, Button } from "react-bootstrap";
-import type { QueueEntry, QueueEntryStatus } from "../../data/queue";
-import type { Appointment } from "../../data/appointments";
+import api from "../../api/axios";
+
+interface QueueEntry {
+  queueEntryId: number;
+  patientId: number;
+  patientName: string;
+  appointmentId: number | null;
+  appointmentDate: string | null;
+  doctorId: number | null;
+  doctorName: string | null;
+  consultationId: number | null;
+  status: "Waiting" | "InProgress" | "Done" | "Skipped";
+  createdAt: string;
+}
 
 export default function QueueEntries() {
-  const [queue, setQueue] = useState<QueueEntry[]>(() => {
-    const saved = localStorage.getItem("queue");
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [appointments, setAppointments] = useState<Appointment[]>(() => {
-    const saved = localStorage.getItem("appointments");
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  // Sync localStorage whenever state changes
-  useEffect(() => {
-    localStorage.setItem("queue", JSON.stringify(queue));
-  }, [queue]);
+  const [queue, setQueue] = useState<QueueEntry[]>([]);
 
   useEffect(() => {
-    localStorage.setItem("appointments", JSON.stringify(appointments));
-  }, [appointments]);
+    fetchQueueEntries();
+  }, []);
 
-  // ✅ Update queue + appointment together
-  const handleQueueStatusChange = (queueId: number, newStatus: QueueEntryStatus) => {
-    // Update queue
-    setQueue((prev) =>
-      prev.map((entry) =>
-        entry.queueEntryId === queueId ? { ...entry, status: newStatus } : entry
-      )
-    );
+  const fetchQueueEntries = async () => {
+    try {
+      const response = await api.get("/QueueEntries");
+      setQueue(response.data);
+    } catch (err) {
+      console.error("Failed to fetch queue entries:", err);
+    }
+  };
 
-    // Update appointment linked to that queue entry
-    const q = queue.find((q) => q.queueEntryId === queueId);
-    if (q?.appointmentId) {
-      setAppointments((prev) =>
-        prev.map((a) => {
-          if (a.appointmentId === q.appointmentId) {
-            let mapped: Appointment["appointmentStatus"] = a.appointmentStatus;
-            if (newStatus === "Skipped") mapped = "Cancelled";
-            else if (newStatus === "Done") mapped = "Completed";
-            else if (newStatus === "InProgress") mapped = "CheckedIn";
-            return { ...a, appointmentStatus: mapped };
-          }
-          return a;
-        })
-      );
+  const handleQueueStatusChange = async (queueId: number, newStatus: QueueEntry["status"]) => {
+    try {
+      await api.put(`/QueueEntries/${queueId}/status`, JSON.stringify(newStatus), {
+        headers: { "Content-Type": "application/json" },
+      });
+      fetchQueueEntries(); // refresh after update
+    } catch (err) {
+      console.error("Failed to update queue status:", err);
     }
   };
 
@@ -60,36 +51,39 @@ export default function QueueEntries() {
             <th>ID</th>
             <th>Patient</th>
             <th>Appointment</th>
+            <th>Appointment Date</th>
             <th>Doctor</th>
+            <th>Consultation</th>
             <th>Status</th>
             <th>Change Status</th>
+            <th>Created At</th>
           </tr>
         </thead>
         <tbody>
           {queue.map((q) => (
             <tr key={q.queueEntryId}>
               <td>{q.queueEntryId}</td>
-              <td>{q.patientId}</td>
-              <td>{q.appointmentId}</td>
-              <td>{q.doctorId ?? "Unassigned"}</td>
+              <td>{q.patientName}</td>
+              <td>{q.appointmentId ?? "—"}</td>
+              <td>{q.appointmentDate ?? "—"}</td>
+              <td>{q.doctorName ?? "—"}</td>
+              <td>{q.consultationId ?? "—"}</td>
               <td>{q.status}</td>
               <td>
                 <Button
                   size="sm"
                   variant="info"
-                  className="me-2"
                   onClick={() => handleQueueStatusChange(q.queueEntryId, "InProgress")}
                 >
                   In Progress
-                </Button>
+                </Button>{" "}
                 <Button
                   size="sm"
                   variant="success"
-                  className="me-2"
                   onClick={() => handleQueueStatusChange(q.queueEntryId, "Done")}
                 >
                   Done
-                </Button>
+                </Button>{" "}
                 <Button
                   size="sm"
                   variant="danger"
@@ -98,6 +92,7 @@ export default function QueueEntries() {
                   Skipped
                 </Button>
               </td>
+              <td>{new Date(q.createdAt).toLocaleString()}</td>
             </tr>
           ))}
         </tbody>

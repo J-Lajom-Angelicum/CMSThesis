@@ -1,8 +1,26 @@
-import { useMemo, useState } from "react";
-import { Table, Button, Modal, Form, Alert } from "react-bootstrap";
+import { useEffect, useState, useMemo } from "react";
+import { Table, Button, Modal, Form, Alert, Spinner } from "react-bootstrap";
 import { useAuth } from "../../context/AuthContext";
+import api from "../../api/axios";
 
-type Consultation = {
+interface Patient {
+  patientId: number;
+  firstName: string;
+  lastName: string;
+}
+
+interface Doctor {
+  doctorId: number;
+  firstName: string;
+  lastName: string;
+}
+
+interface Appointment {
+  appointmentId: number;
+  appointmentDateTime: string;
+}
+
+interface Consultation {
   consultationId: number;
   patientId: number;
   doctorId: number;
@@ -11,38 +29,21 @@ type Consultation = {
   notes: string;
   diagnosis: string;
   treatment: string;
-};
+}
 
 export default function Consultations() {
-  const { role, user, users } = useAuth();
-
-  const currentUser = users.find(u => u.username === user);
-  const currentUserId = currentUser?.id ?? null;
-
-  const isAdmin = role === "ADMIN";
-  const isDoctor = role === "DOCTOR";
-  const isStaff = role === "STAFF";
-
-  // Initial sample data
-  const [consultations, setConsultations] = useState<Consultation[]>([
-    {
-      consultationId: 1,
-      patientId: 101,
-      doctorId: currentUserId ?? 201,
-      appointmentId: 1,
-      consultationDate: "2025-09-27T10:00",
-      notes: "Patient reported mild fever.",
-      diagnosis: "Viral Infection",
-      treatment: "Paracetamol 500mg",
-    },
-  ]);
-
+  const { role, user } = useAuth();
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [consultations, setConsultations] = useState<Consultation[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     patientId: "",
-    doctorId: currentUserId ? String(currentUserId) : "",
+    doctorId: "",
     appointmentId: "",
     consultationDate: "",
     notes: "",
@@ -50,93 +51,94 @@ export default function Consultations() {
     treatment: "",
   });
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const isAdmin = role === "ADMIN";
+  const isDoctor = role === "DOCTOR";
+  const isStaff = role === "STAFF";
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [patientsRes, doctorsRes, apptRes, consRes] = await Promise.all([
+        api.get("/patients"),
+        api.get("/doctors"),
+        api.get("/appointments"),
+        api.get("/consultations"),
+      ]);
+      setPatients(patientsRes.data);
+      setDoctors(doctorsRes.data);
+      setAppointments(apptRes.data);
+      setConsultations(consRes.data);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to load consultations data.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<any>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // RBAC filtering
-  const displayedConsultations = useMemo(() => {
-    if (isDoctor && currentUserId !== null) {
-      return consultations.filter(c => c.doctorId === currentUserId);
-    }
-    if (isStaff) {
-      return consultations; // staff sees all but cannot modify
-    }
-    if (isAdmin) {
-      return consultations; // admin sees all
-    }
-    return [];
-  }, [consultations, isDoctor, isStaff, isAdmin, currentUserId]);
-
-  const handleSave = () => {
-    if (isStaff) return; // staff cannot save
-
-    if (editingId) {
-      setConsultations(prev =>
-        prev.map(c =>
-          c.consultationId === editingId
-            ? {
-                ...c,
-                patientId: Number(formData.patientId),
-                doctorId: Number(formData.doctorId),
-                appointmentId: formData.appointmentId
-                  ? Number(formData.appointmentId)
-                  : undefined,
-                consultationDate: formData.consultationDate,
-                notes: formData.notes,
-                diagnosis: formData.diagnosis,
-                treatment: formData.treatment,
-              }
-            : c
-        )
-      );
-    } else {
-      const nextId =
-        consultations.length > 0
-          ? Math.max(...consultations.map(c => c.consultationId)) + 1
-          : 1;
-      setConsultations(prev => [
-        ...prev,
-        {
-          consultationId: nextId,
-          patientId: Number(formData.patientId),
-          doctorId: Number(formData.doctorId),
-          appointmentId: formData.appointmentId
-            ? Number(formData.appointmentId)
-            : undefined,
-          consultationDate: formData.consultationDate,
-          notes: formData.notes,
-          diagnosis: formData.diagnosis,
-          treatment: formData.treatment,
-        },
-      ]);
-    }
-
-    setShowModal(false);
-    setEditingId(null);
+  const resetForm = () => {
     setFormData({
       patientId: "",
-      doctorId: currentUserId ? String(currentUserId) : "",
+      doctorId: "",
       appointmentId: "",
       consultationDate: "",
       notes: "",
       diagnosis: "",
       treatment: "",
     });
+    setEditingId(null);
+    setShowModal(false);
+  };
+
+  const handleSave = async () => {
+    if (isStaff) return alert("Staff cannot modify consultations.");
+
+    if (!formData.patientId || !formData.doctorId || !formData.consultationDate) {
+      alert("Please fill in all required fields.");
+      return;
+    }
+
+    const dto = {
+      patientId: Number(formData.patientId),
+      doctorId: Number(formData.doctorId),
+      appointmentId: formData.appointmentId ? Number(formData.appointmentId) : null,
+      consultationDate: formData.consultationDate,
+      notes: formData.notes,
+      diagnosis: formData.diagnosis,
+      treatment: formData.treatment,
+    };
+
+    try {
+      if (editingId) {
+        await api.put(`/consultations/${editingId}`, dto);
+      } else {
+        await api.post("/consultations", dto);
+      }
+      await loadData();
+      resetForm();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.message || "Error saving consultation.");
+    }
   };
 
   const handleEdit = (c: Consultation) => {
-    if (isStaff) return; // staff cannot edit
-
+    if (isStaff) return;
     setEditingId(c.consultationId);
     setFormData({
       patientId: String(c.patientId),
       doctorId: String(c.doctorId),
       appointmentId: c.appointmentId ? String(c.appointmentId) : "",
-      consultationDate: c.consultationDate,
+      consultationDate: c.consultationDate.slice(0, 16),
       notes: c.notes,
       diagnosis: c.diagnosis,
       treatment: c.treatment,
@@ -144,35 +146,42 @@ export default function Consultations() {
     setShowModal(true);
   };
 
+  const handleDelete = async (id: number) => {
+    if (!isAdmin) return;
+    if (!confirm("Are you sure you want to delete this consultation?")) return;
+    try {
+      await api.delete(`/consultations/${id}`);
+      await loadData();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete consultation.");
+    }
+  };
+
+  const displayedConsultations = useMemo(() => {
+    if (isDoctor) {
+      // if backend returns doctorId, filter for their consultations
+      return consultations.filter(c => c.doctorId === Number(localStorage.getItem("doctorId")));
+    }
+    return consultations;
+  }, [consultations, isDoctor]);
+
   return (
     <div className="container mt-4">
       <h2>Consultations</h2>
 
-      {/* New button: only Doctor + Admin */}
-      {(isDoctor || isAdmin) && (
-        <Button
-          variant="primary"
-          className="mb-3"
-          onClick={() => {
-            setEditingId(null);
-            setFormData({
-              patientId: "",
-              doctorId: currentUserId ? String(currentUserId) : "",
-              appointmentId: "",
-              consultationDate: "",
-              notes: "",
-              diagnosis: "",
-              treatment: "",
-            });
-            setShowModal(true);
-          }}
-        >
+      {(isAdmin || isDoctor) && (
+        <Button variant="primary" className="mb-3" onClick={() => setShowModal(true)}>
           + New Consultation
         </Button>
       )}
 
-      {displayedConsultations.length === 0 ? (
-        <Alert variant="info">No consultations to show.</Alert>
+      {loading ? (
+        <div className="text-center my-4">
+          <Spinner animation="border" />
+        </div>
+      ) : displayedConsultations.length === 0 ? (
+        <Alert variant="info">No consultations found.</Alert>
       ) : (
         <Table striped bordered hover responsive>
           <thead>
@@ -185,29 +194,49 @@ export default function Consultations() {
               <th>Diagnosis</th>
               <th>Treatment</th>
               <th>Notes</th>
-              {(isDoctor || isAdmin) && <th>Actions</th>}
+              {(isAdmin || isDoctor) && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
             {displayedConsultations.map(c => (
               <tr key={c.consultationId}>
                 <td>{c.consultationId}</td>
-                <td>{c.patientId}</td>
-                <td>{c.doctorId}</td>
-                <td>{c.appointmentId ?? "-"}</td>
+                <td>
+                  {
+                    patients.find(p => p.patientId === c.patientId)?.firstName
+                  }{" "}
+                  {
+                    patients.find(p => p.patientId === c.patientId)?.lastName
+                  }
+                </td>
+                <td>
+                  {
+                    doctors.find(d => d.doctorId === c.doctorId)?.firstName
+                  }{" "}
+                  {
+                    doctors.find(d => d.doctorId === c.doctorId)?.lastName
+                  }
+                </td>
+                <td>{c.appointmentId || "-"}</td>
                 <td>{new Date(c.consultationDate).toLocaleString()}</td>
                 <td>{c.diagnosis}</td>
                 <td>{c.treatment}</td>
                 <td>{c.notes}</td>
-                {(isDoctor || isAdmin) && (
+                {(isAdmin || isDoctor) && (
                   <td>
-                    <Button
-                      size="sm"
-                      variant="warning"
-                      onClick={() => handleEdit(c)}
-                    >
+                    <Button size="sm" variant="warning" onClick={() => handleEdit(c)}>
                       Edit
                     </Button>
+                    {isAdmin && (
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        className="ms-2"
+                        onClick={() => handleDelete(c.consultationId)}
+                      >
+                        Delete
+                      </Button>
+                    )}
                   </td>
                 )}
               </tr>
@@ -216,46 +245,61 @@ export default function Consultations() {
         </Table>
       )}
 
-      {/* Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
+      {/* MODAL */}
+      <Modal show={showModal} onHide={resetForm}>
         <Modal.Header closeButton>
-          <Modal.Title>
-            {editingId ? "Edit Consultation" : "New Consultation"}
-          </Modal.Title>
+          <Modal.Title>{editingId ? "Edit Consultation" : "New Consultation"}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form>
             <Form.Group className="mb-3">
-              <Form.Label>Patient ID</Form.Label>
-              <Form.Control
-                type="number"
+              <Form.Label>Patient</Form.Label>
+              <Form.Select
                 name="patientId"
                 value={formData.patientId}
                 onChange={handleChange}
-                disabled={isStaff} // staff can't change
-              />
+                disabled={isStaff}
+              >
+                <option value="">Select Patient</option>
+                {patients.map(p => (
+                  <option key={p.patientId} value={p.patientId}>
+                    {p.firstName} {p.lastName}
+                  </option>
+                ))}
+              </Form.Select>
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>Doctor ID</Form.Label>
-              <Form.Control
-                type="number"
+              <Form.Label>Doctor</Form.Label>
+              <Form.Select
                 name="doctorId"
                 value={formData.doctorId}
                 onChange={handleChange}
-                disabled={isDoctor || isStaff} // doctor locked to self, staff read-only
-              />
+                disabled={isDoctor || isStaff}
+              >
+                <option value="">Select Doctor</option>
+                {doctors.map(d => (
+                  <option key={d.doctorId} value={d.doctorId}>
+                    {d.firstName} {d.lastName}
+                  </option>
+                ))}
+              </Form.Select>
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>Appointment ID (optional)</Form.Label>
-              <Form.Control
-                type="number"
+              <Form.Label>Appointment (optional)</Form.Label>
+              <Form.Select
                 name="appointmentId"
                 value={formData.appointmentId}
                 onChange={handleChange}
-                disabled={isStaff}
-              />
+              >
+                <option value="">None</option>
+                {appointments.map(a => (
+                  <option key={a.appointmentId} value={a.appointmentId}>
+                    {a.appointmentId} — {new Date(a.appointmentDateTime).toLocaleString()}
+                  </option>
+                ))}
+              </Form.Select>
             </Form.Group>
 
             <Form.Group className="mb-3">
@@ -265,7 +309,6 @@ export default function Consultations() {
                 name="consultationDate"
                 value={formData.consultationDate}
                 onChange={handleChange}
-                disabled={isStaff}
               />
             </Form.Group>
 
@@ -276,7 +319,6 @@ export default function Consultations() {
                 name="diagnosis"
                 value={formData.diagnosis}
                 onChange={handleChange}
-                disabled={isStaff}
               />
             </Form.Group>
 
@@ -288,28 +330,26 @@ export default function Consultations() {
                 name="treatment"
                 value={formData.treatment}
                 onChange={handleChange}
-                disabled={isStaff}
               />
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>Clinical Notes</Form.Label>
+              <Form.Label>Notes</Form.Label>
               <Form.Control
                 as="textarea"
                 rows={3}
                 name="notes"
                 value={formData.notes}
                 onChange={handleChange}
-                disabled={isStaff}
               />
             </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
+          <Button variant="secondary" onClick={resetForm}>
             Close
           </Button>
-          {(isDoctor || isAdmin) && (
+          {(isAdmin || isDoctor) && (
             <Button variant="primary" onClick={handleSave}>
               Save
             </Button>
