@@ -5,22 +5,49 @@ import api from "../../api/axios";
 
 type PaymentMethod = "Cash" | "Card" | "Insurance" | "Online";
 
+interface Patient {
+  patientId: number;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+}
+
+interface Consultation {
+  consultationId: number;
+  patientId: number;
+  appointmentId?: number;
+  consultationDate: string;
+}
+
+interface Appointment {
+  appointmentId: number;
+  patientId: number;
+  appointmentDateTime: string;
+}
+
 interface Payment {
   paymentId: number;
   patientId: number;
+  patientName: string;
   consultationId: number;
+  consultationDate: string;
   appointmentId?: number | null;
+  appointmentDate?: string;
   amount: number;
   paymentMethod: PaymentMethod;
   paymentReason: string;
   paymentDate: string;
-  recordedByUserId: number;
+  recordedByUser?: string;
 }
 
 export default function Payments() {
   const { user } = useAuth();
 
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [consultations, setConsultations] = useState<Consultation[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+
   const [showModal, setShowModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [formData, setFormData] = useState({
@@ -32,6 +59,26 @@ export default function Payments() {
     paymentReason: "",
   });
   const [error, setError] = useState("");
+
+  // Fetch dropdown data
+  const fetchDropdowns = async () => {
+    try {
+      const [patientsRes, consultationsRes, appointmentsRes] = await Promise.all([
+        api.get<Patient[]>("/Patients"),
+        api.get<Consultation[]>("/Consultations"),
+        api.get<Appointment[]>("/Appointments"),
+      ]);
+
+      setPatients(
+        patientsRes.data.map(p => ({ ...p, fullName: `${p.firstName} ${p.lastName}` }))
+      );
+      setConsultations(consultationsRes.data);
+      setAppointments(appointmentsRes.data);
+    } catch (err) {
+      console.error("Failed to fetch dropdown data", err);
+      setError("Failed to load dropdown data");
+    }
+  };
 
   // Fetch payments from backend
   const fetchPayments = async () => {
@@ -45,6 +92,7 @@ export default function Payments() {
   };
 
   useEffect(() => {
+    fetchDropdowns();
     fetchPayments();
   }, []);
 
@@ -69,33 +117,30 @@ export default function Payments() {
 
   const handleSave = async () => {
     try {
-      if (editingPayment) {
-        // Update existing payment
-        const updated = {
-          ...editingPayment,
-          patientId: Number(formData.patientId),
-          consultationId: Number(formData.consultationId),
-          appointmentId: formData.appointmentId ? Number(formData.appointmentId) : null,
-          amount: Number(formData.amount),
-          paymentMethod: formData.paymentMethod,
-          paymentReason: formData.paymentReason,
-        };
-        await api.put(`/Payments/${editingPayment.paymentId}`, updated);
-      } else {
-        // Create new payment
-        const newPayment = {
-          patientId: Number(formData.patientId),
-          consultationId: Number(formData.consultationId),
-          appointmentId: formData.appointmentId ? Number(formData.appointmentId) : null,
-          amount: Number(formData.amount),
-          paymentMethod: formData.paymentMethod,
-          paymentReason: formData.paymentReason,
-        };
-        await api.post("/Payments", newPayment);
+      if (!user) {
+        setError("You must be logged in to record a payment");
+        return;
       }
+
+      const payload = {
+        patientId: Number(formData.patientId),
+        consultationId: Number(formData.consultationId),
+        appointmentId: formData.appointmentId ? Number(formData.appointmentId) : null,
+        amount: Number(formData.amount),
+        paymentMethod: formData.paymentMethod,
+        paymentReason: formData.paymentReason,
+        recordedByUser: user, // <-- using username directly
+      };
+
+      if (editingPayment) {
+        await api.put(`/Payments/${editingPayment.paymentId}`, payload);
+      } else {
+        await api.post("/Payments", payload);
+      }
+
       setShowModal(false);
       resetForm();
-      fetchPayments(); // Refresh the table
+      fetchPayments();
     } catch (err) {
       console.error("Failed to save payment:", err);
       setError("Failed to save payment");
@@ -118,7 +163,6 @@ export default function Payments() {
   return (
     <div className="container mt-4">
       <h2>Payments</h2>
-
       {error && <Alert variant="danger">{error}</Alert>}
 
       <Button
@@ -154,14 +198,14 @@ export default function Payments() {
             {payments.map(p => (
               <tr key={p.paymentId}>
                 <td>{p.paymentId}</td>
-                <td>{p.patientId}</td>
-                <td>{p.consultationId}</td>
-                <td>{p.appointmentId ?? "-"}</td>
+                <td>{p.patientName}</td>
+                <td>{new Date(p.consultationDate).toLocaleDateString()}</td>
+                <td>{p.appointmentDate ? new Date(p.appointmentDate).toLocaleString() : "-"}</td>
                 <td>₱{p.amount.toFixed(2)}</td>
                 <td>{p.paymentMethod}</td>
                 <td>{p.paymentReason}</td>
                 <td>{new Date(p.paymentDate).toLocaleString()}</td>
-                <td>{p.recordedByUserId}</td>
+                <td>{p.recordedByUser ?? user}</td>
                 <td>
                   <Button size="sm" variant="warning" onClick={() => handleEdit(p)}>
                     Edit
@@ -180,23 +224,50 @@ export default function Payments() {
         <Modal.Body>
           <Form>
             <Form.Group className="mb-3">
-              <Form.Label>Patient ID</Form.Label>
-              <Form.Control type="number" name="patientId" value={formData.patientId} onChange={handleChange} />
+              <Form.Label>Patient</Form.Label>
+              <Form.Select name="patientId" value={formData.patientId} onChange={handleChange}>
+                <option value="">Select patient</option>
+                {patients.map(p => (
+                  <option key={p.patientId} value={p.patientId}>
+                    {p.fullName}
+                  </option>
+                ))}
+              </Form.Select>
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>Consultation ID</Form.Label>
-              <Form.Control type="number" name="consultationId" value={formData.consultationId} onChange={handleChange} />
+              <Form.Label>Consultation</Form.Label>
+              <Form.Select name="consultationId" value={formData.consultationId} onChange={handleChange}>
+                <option value="">Select consultation</option>
+                {consultations.map(c => (
+                  <option key={c.consultationId} value={c.consultationId}>
+                    {`ID:${c.consultationId} - ${new Date(c.consultationDate).toLocaleDateString()}`}
+                  </option>
+                ))}
+              </Form.Select>
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>Appointment ID (optional)</Form.Label>
-              <Form.Control type="number" name="appointmentId" value={formData.appointmentId} onChange={handleChange} />
+              <Form.Label>Appointment (optional)</Form.Label>
+              <Form.Select name="appointmentId" value={formData.appointmentId} onChange={handleChange}>
+                <option value="">None</option>
+                {appointments.map(a => (
+                  <option key={a.appointmentId} value={a.appointmentId}>
+                    {`ID:${a.appointmentId} - ${new Date(a.appointmentDateTime).toLocaleString()}`}
+                  </option>
+                ))}
+              </Form.Select>
             </Form.Group>
 
             <Form.Group className="mb-3">
               <Form.Label>Amount</Form.Label>
-              <Form.Control type="number" step="0.01" name="amount" value={formData.amount} onChange={handleChange} />
+              <Form.Control
+                type="number"
+                step="0.01"
+                name="amount"
+                value={formData.amount}
+                onChange={handleChange}
+              />
             </Form.Group>
 
             <Form.Group className="mb-3">
@@ -211,13 +282,22 @@ export default function Payments() {
 
             <Form.Group className="mb-3">
               <Form.Label>Reason</Form.Label>
-              <Form.Control type="text" name="paymentReason" value={formData.paymentReason} onChange={handleChange} />
+              <Form.Control
+                type="text"
+                name="paymentReason"
+                value={formData.paymentReason}
+                onChange={handleChange}
+              />
             </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
-          <Button variant="primary" onClick={handleSave}>Save</Button>
+          <Button variant="secondary" onClick={() => setShowModal(false)}>
+            Close
+          </Button>
+          <Button variant="primary" onClick={handleSave}>
+            Save
+          </Button>
         </Modal.Footer>
       </Modal>
     </div>
