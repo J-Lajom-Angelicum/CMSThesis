@@ -9,7 +9,7 @@ interface Patient {
   patientId: number;
   firstName: string;
   lastName: string;
-  fullName: string;
+  fullName?: string;
 }
 
 interface Consultation {
@@ -25,28 +25,39 @@ interface Appointment {
   appointmentDateTime: string;
 }
 
+interface User {
+  userId: number;
+  username: string;
+}
+
 interface Payment {
   paymentId: number;
   patientId: number;
-  patientName: string;
   consultationId: number;
-  consultationDate: string;
   appointmentId?: number | null;
-  appointmentDate?: string;
   amount: number;
   paymentMethod: PaymentMethod;
   paymentReason: string;
   paymentDate: string;
-  recordedByUser?: string;
+  recordedByUserId: number;
+}
+
+// ✅ Extend Payment for display purposes
+interface PaymentDisplay extends Payment {
+  patientName?: string;
+  consultationDate?: string;
+  appointmentDate?: string;
 }
 
 export default function Payments() {
-  const { user } = useAuth();
+  const { user } = useAuth(); // assume this returns username string
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [payments, setPayments] = useState<PaymentDisplay[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
 
   const [showModal, setShowModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
@@ -60,43 +71,72 @@ export default function Payments() {
   });
   const [error, setError] = useState("");
 
-  // Fetch dropdown data
+  // Fetch dropdowns and users
   const fetchDropdowns = async () => {
     try {
-      const [patientsRes, consultationsRes, appointmentsRes] = await Promise.all([
-        api.get<Patient[]>("/Patients"),
-        api.get<Consultation[]>("/Consultations"),
-        api.get<Appointment[]>("/Appointments"),
-      ]);
+      const [patientsRes, consultationsRes, appointmentsRes, usersRes] =
+        await Promise.all([
+          api.get<Patient[]>("/Patients"),
+          api.get<Consultation[]>("/Consultations"),
+          api.get<Appointment[]>("/Appointments"),
+          api.get<User[]>("/Users"),
+        ]);
 
       setPatients(
-        patientsRes.data.map(p => ({ ...p, fullName: `${p.firstName} ${p.lastName}` }))
+        patientsRes.data.map((p) => ({ ...p, fullName: `${p.firstName} ${p.lastName}` }))
       );
       setConsultations(consultationsRes.data);
       setAppointments(appointmentsRes.data);
+      setUsers(usersRes.data);
+
+      // Map current username to userId
+      if (typeof user === "string") {
+        const found = usersRes.data.find((u) => u.username === user);
+        if (found) setCurrentUserId(found.userId);
+      }
     } catch (err) {
-      console.error("Failed to fetch dropdown data", err);
-      setError("Failed to load dropdown data");
+      console.error(err);
+      setError("Failed to load dropdowns or users");
     }
   };
 
-  // Fetch payments from backend
+  // Fetch payments and map names/dates
   const fetchPayments = async () => {
     try {
       const res = await api.get<Payment[]>("/Payments");
-      setPayments(res.data);
+
+      const mapped: PaymentDisplay[] = res.data.map((p) => {
+        const patient = patients.find((pt) => pt.patientId === p.patientId);
+        const consultation = consultations.find((c) => c.consultationId === p.consultationId);
+        const appointment = appointments.find((a) => a.appointmentId === p.appointmentId);
+
+        return {
+          ...p,
+          patientName: patient ? patient.fullName : "Unknown",
+          consultationDate: consultation ? consultation.consultationDate : "",
+          appointmentDate: appointment ? appointment.appointmentDateTime : "",
+        };
+      });
+
+      setPayments(mapped);
     } catch (err) {
-      console.error("Failed to fetch payments:", err);
+      console.error(err);
       setError("Failed to load payments");
     }
   };
 
   useEffect(() => {
     fetchDropdowns();
-    fetchPayments();
   }, []);
 
-  const resetForm = () => {
+  // Refresh payments after dropdowns loaded
+  useEffect(() => {
+    if (patients.length && consultations.length) {
+      fetchPayments();
+    }
+  }, [patients, consultations, appointments]);
+
+  const resetForm = () =>
     setFormData({
       patientId: "",
       consultationId: "",
@@ -105,59 +145,65 @@ export default function Payments() {
       paymentMethod: "Cash",
       paymentReason: "",
     });
-    setEditingPayment(null);
-  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSave = async () => {
+    if (!currentUserId) {
+      setError("You must be logged in to record a payment");
+      return;
+    }
+    if (!formData.patientId || !formData.consultationId || !formData.amount || !formData.paymentReason) {
+      setError("Patient, consultation, amount, and reason are required");
+      return;
+    }
+
+    const payload = {
+      patientId: Number(formData.patientId),
+      consultationId: Number(formData.consultationId),
+      appointmentId: formData.appointmentId ? Number(formData.appointmentId) : null,
+      amount: Number(formData.amount),
+      paymentMethod: formData.paymentMethod,
+      paymentReason: formData.paymentReason,
+      recordedByUserId: currentUserId,
+    };
+
     try {
-      if (!user) {
-        setError("You must be logged in to record a payment");
-        return;
-      }
-
-      const payload = {
-        patientId: Number(formData.patientId),
-        consultationId: Number(formData.consultationId),
-        appointmentId: formData.appointmentId ? Number(formData.appointmentId) : null,
-        amount: Number(formData.amount),
-        paymentMethod: formData.paymentMethod,
-        paymentReason: formData.paymentReason,
-        recordedByUser: user, // <-- using username directly
-      };
-
       if (editingPayment) {
         await api.put(`/Payments/${editingPayment.paymentId}`, payload);
       } else {
         await api.post("/Payments", payload);
       }
-
       setShowModal(false);
       resetForm();
       fetchPayments();
     } catch (err) {
-      console.error("Failed to save payment:", err);
+      console.error(err);
       setError("Failed to save payment");
     }
   };
 
-  const handleEdit = (payment: Payment) => {
-    setEditingPayment(payment);
+  const handleEdit = (p: PaymentDisplay) => {
+    setEditingPayment(p);
     setFormData({
-      patientId: String(payment.patientId),
-      consultationId: String(payment.consultationId),
-      appointmentId: payment.appointmentId ? String(payment.appointmentId) : "",
-      amount: String(payment.amount),
-      paymentMethod: payment.paymentMethod,
-      paymentReason: payment.paymentReason,
+      patientId: String(p.patientId),
+      consultationId: String(p.consultationId),
+      appointmentId: p.appointmentId ? String(p.appointmentId) : "",
+      amount: String(p.amount),
+      paymentMethod: p.paymentMethod,
+      paymentReason: p.paymentReason,
     });
     setShowModal(true);
+  };
+
+  const getUsername = (userId: number) => {
+    const found = users.find((u) => u.userId === userId);
+    return found ? found.username : "Unknown";
   };
 
   return (
@@ -170,6 +216,7 @@ export default function Payments() {
         className="mb-3"
         onClick={() => {
           resetForm();
+          setEditingPayment(null);
           setShowModal(true);
         }}
       >
@@ -195,17 +242,17 @@ export default function Payments() {
             </tr>
           </thead>
           <tbody>
-            {payments.map(p => (
+            {payments.map((p) => (
               <tr key={p.paymentId}>
                 <td>{p.paymentId}</td>
                 <td>{p.patientName}</td>
-                <td>{new Date(p.consultationDate).toLocaleDateString()}</td>
+                <td>{p.consultationDate ? new Date(p.consultationDate).toLocaleDateString() : "-"}</td>
                 <td>{p.appointmentDate ? new Date(p.appointmentDate).toLocaleString() : "-"}</td>
                 <td>₱{p.amount.toFixed(2)}</td>
                 <td>{p.paymentMethod}</td>
                 <td>{p.paymentReason}</td>
                 <td>{new Date(p.paymentDate).toLocaleString()}</td>
-                <td>{p.recordedByUser ?? user}</td>
+                <td>{getUsername(p.recordedByUserId)}</td>
                 <td>
                   <Button size="sm" variant="warning" onClick={() => handleEdit(p)}>
                     Edit
@@ -227,7 +274,7 @@ export default function Payments() {
               <Form.Label>Patient</Form.Label>
               <Form.Select name="patientId" value={formData.patientId} onChange={handleChange}>
                 <option value="">Select patient</option>
-                {patients.map(p => (
+                {patients.map((p) => (
                   <option key={p.patientId} value={p.patientId}>
                     {p.fullName}
                   </option>
@@ -237,9 +284,13 @@ export default function Payments() {
 
             <Form.Group className="mb-3">
               <Form.Label>Consultation</Form.Label>
-              <Form.Select name="consultationId" value={formData.consultationId} onChange={handleChange}>
+              <Form.Select
+                name="consultationId"
+                value={formData.consultationId}
+                onChange={handleChange}
+              >
                 <option value="">Select consultation</option>
-                {consultations.map(c => (
+                {consultations.map((c) => (
                   <option key={c.consultationId} value={c.consultationId}>
                     {`ID:${c.consultationId} - ${new Date(c.consultationDate).toLocaleDateString()}`}
                   </option>
@@ -249,9 +300,13 @@ export default function Payments() {
 
             <Form.Group className="mb-3">
               <Form.Label>Appointment (optional)</Form.Label>
-              <Form.Select name="appointmentId" value={formData.appointmentId} onChange={handleChange}>
+              <Form.Select
+                name="appointmentId"
+                value={formData.appointmentId}
+                onChange={handleChange}
+              >
                 <option value="">None</option>
-                {appointments.map(a => (
+                {appointments.map((a) => (
                   <option key={a.appointmentId} value={a.appointmentId}>
                     {`ID:${a.appointmentId} - ${new Date(a.appointmentDateTime).toLocaleString()}`}
                   </option>
@@ -272,7 +327,11 @@ export default function Payments() {
 
             <Form.Group className="mb-3">
               <Form.Label>Payment Method</Form.Label>
-              <Form.Select name="paymentMethod" value={formData.paymentMethod} onChange={handleChange}>
+              <Form.Select
+                name="paymentMethod"
+                value={formData.paymentMethod}
+                onChange={handleChange}
+              >
                 <option value="Cash">Cash</option>
                 <option value="Card">Card</option>
                 <option value="Insurance">Insurance</option>
