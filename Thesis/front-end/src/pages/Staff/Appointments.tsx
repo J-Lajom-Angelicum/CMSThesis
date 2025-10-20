@@ -1,6 +1,6 @@
 // src/pages/Staff/Appointments.tsx
 import { useEffect, useState } from "react";
-import { Table, Button, Modal, Form, Alert } from "react-bootstrap";
+import { Table, Button, Modal, Form, Alert, Spinner } from "react-bootstrap";
 import api from "../../api/axios";
 
 interface Patient {
@@ -24,14 +24,15 @@ interface Appointment {
   doctorFirstName: string;
   doctorLastName: string;
   appointmentDateTime: string;
-  appointmentStatus: string;
-  notes: string;
+  appointmentStatus: "Booked" | "CheckedIn" | "Cancelled" | "NoShow" | "Completed";
+  notes?: string | null;
 }
 
 export default function Appointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
@@ -40,11 +41,13 @@ export default function Appointments() {
     doctorId: "",
     appointmentDateTime: "",
     notes: "",
+    appointmentStatus: "Booked" as Appointment["appointmentStatus"],
   });
 
   // Load all data
   const loadData = async () => {
     try {
+      setLoading(true);
       const [patientsRes, doctorsRes, appointmentsRes] = await Promise.all([
         api.get("/patients"),
         api.get("/doctors"),
@@ -57,6 +60,8 @@ export default function Appointments() {
     } catch (err) {
       console.error(err);
       alert("Failed to load data.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -70,7 +75,13 @@ export default function Appointments() {
   };
 
   const resetForm = () => {
-    setFormData({ patientId: "", doctorId: "", appointmentDateTime: "", notes: "" });
+    setFormData({
+      patientId: "",
+      doctorId: "",
+      appointmentDateTime: "",
+      notes: "",
+      appointmentStatus: "Booked",
+    });
     setEditingId(null);
     setShowModal(false);
   };
@@ -86,15 +97,17 @@ export default function Appointments() {
       doctorId: Number(formData.doctorId),
       appointmentDateTime: formData.appointmentDateTime,
       notes: formData.notes || null,
+      appointmentStatus: formData.appointmentStatus,
     };
 
     try {
       if (editingId) {
+        // Update existing
         await api.put(`/appointments/${editingId}`, dto);
       } else {
+        // Create new
         await api.post("/appointments", dto);
       }
-
       await loadData();
       resetForm();
     } catch (err: any) {
@@ -108,13 +121,14 @@ export default function Appointments() {
     setFormData({
       patientId: String(a.patientId),
       doctorId: String(a.doctorId),
-      appointmentDateTime: a.appointmentDateTime.slice(0, 16), // keep valid datetime-local format
+      appointmentDateTime: a.appointmentDateTime.slice(0, 16),
       notes: a.notes || "",
+      appointmentStatus: a.appointmentStatus,
     });
     setShowModal(true);
   };
 
-  const handleStatusChange = async (id: number, status: string) => {
+  const handleStatusChange = async (id: number, status: Appointment["appointmentStatus"]) => {
     try {
       const existing = appointments.find(a => a.appointmentId === id);
       if (!existing) return alert("Appointment not found.");
@@ -143,7 +157,11 @@ export default function Appointments() {
         + Book Appointment
       </Button>
 
-      {appointments.length === 0 ? (
+      {loading ? (
+        <div className="text-center my-4">
+          <Spinner animation="border" />
+        </div>
+      ) : appointments.length === 0 ? (
         <Alert variant="info">No appointments available.</Alert>
       ) : (
         <Table striped bordered hover responsive>
@@ -164,29 +182,13 @@ export default function Appointments() {
                 <td>{a.appointmentId}</td>
                 <td>{a.patientFirstName} {a.patientLastName}</td>
                 <td>{a.doctorFirstName} {a.doctorLastName}</td>
-                <td>{new Date(a.appointmentDateTime).toLocaleString() || "N/A"}</td>
+                <td>{new Date(a.appointmentDateTime).toLocaleString()}</td>
                 <td>{a.appointmentStatus}</td>
                 <td>{a.notes || "—"}</td>
                 <td>
-                  <Button size="sm" variant="warning" onClick={() => handleEdit(a)}>
-                    Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    className="ms-2"
-                    onClick={() => handleStatusChange(a.appointmentId, "Cancelled")}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="success"
-                    className="ms-2"
-                    onClick={() => handleStatusChange(a.appointmentId, "Completed")}
-                  >
-                    Complete
-                  </Button>
+                  <Button size="sm" variant="warning" onClick={() => handleEdit(a)}>Edit</Button>
+                  <Button size="sm" variant="danger" className="ms-2" onClick={() => handleStatusChange(a.appointmentId, "Cancelled")}>Cancel</Button>
+                  <Button size="sm" variant="success" className="ms-2" onClick={() => handleStatusChange(a.appointmentId, "Completed")}>Complete</Button>
                 </td>
               </tr>
             ))}
@@ -206,9 +208,7 @@ export default function Appointments() {
               <Form.Select name="patientId" value={formData.patientId} onChange={handleChange}>
                 <option value="">Select Patient</option>
                 {patients.map(p => (
-                  <option key={p.patientId} value={p.patientId}>
-                    {p.firstName} {p.lastName}
-                  </option>
+                  <option key={p.patientId} value={p.patientId}>{p.firstName} {p.lastName}</option>
                 ))}
               </Form.Select>
             </Form.Group>
@@ -218,33 +218,33 @@ export default function Appointments() {
               <Form.Select name="doctorId" value={formData.doctorId} onChange={handleChange}>
                 <option value="">Select Doctor</option>
                 {doctors.map(d => (
-                  <option key={d.doctorId} value={d.doctorId}>
-                    {d.firstName} {d.lastName}
-                  </option>
+                  <option key={d.doctorId} value={d.doctorId}>{d.firstName} {d.lastName}</option>
                 ))}
               </Form.Select>
             </Form.Group>
 
             <Form.Group className="mb-3">
               <Form.Label>Date & Time</Form.Label>
-              <Form.Control
-                type="datetime-local"
-                name="appointmentDateTime"
-                value={formData.appointmentDateTime}
-                onChange={handleChange}
-              />
+              <Form.Control type="datetime-local" name="appointmentDateTime" value={formData.appointmentDateTime} onChange={handleChange} />
             </Form.Group>
 
             <Form.Group className="mb-3">
               <Form.Label>Notes</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                name="notes"
-                value={formData.notes}
-                onChange={handleChange}
-              />
+              <Form.Control as="textarea" rows={2} name="notes" value={formData.notes} onChange={handleChange} />
             </Form.Group>
+
+            {editingId && (
+              <Form.Group className="mb-3">
+                <Form.Label>Status</Form.Label>
+                <Form.Select name="appointmentStatus" value={formData.appointmentStatus} onChange={handleChange}>
+                  <option value="Booked">Booked</option>
+                  <option value="CheckedIn">CheckedIn</option>
+                  <option value="Cancelled">Cancelled</option>
+                  <option value="NoShow">NoShow</option>
+                  <option value="Completed">Completed</option>
+                </Form.Select>
+              </Form.Group>
+            )}
           </Form>
         </Modal.Body>
         <Modal.Footer>

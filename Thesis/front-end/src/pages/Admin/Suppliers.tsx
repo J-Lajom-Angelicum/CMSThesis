@@ -1,93 +1,121 @@
 import React, { useEffect, useState } from "react";
-import { Button, Form, Modal, Table } from "react-bootstrap";
+import { Button, Form, Modal, Table, Alert } from "react-bootstrap";
+import api from "../../api/axios"; // your Axios instance
 
+// Match backend JSON casing
 interface Supplier {
-  SupplierId: number;
-  SupplierName: string;
-  ContactNo: string;
-  Email: string;
-  Address: string;
+  supplierId: number;
+  supplierName: string;
+  contactNo?: string;
+  email?: string;
+  address?: string;
 }
 
-const Suppliers: React.FC = () => {
+type SupplierForm = Omit<Supplier, "supplierId">;
+
+export default function Suppliers() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
-  const [form, setForm] = useState<Omit<Supplier, "SupplierId">>({
-    SupplierName: "",
-    ContactNo: "",
-    Email: "",
-    Address: "",
+  const [form, setForm] = useState<SupplierForm>({
+    supplierName: "",
+    contactNo: "",
+    email: "",
+    address: "",
   });
+  const [error, setError] = useState("");
 
-  // Load suppliers from localStorage
-  useEffect(() => {
-    const stored = localStorage.getItem("suppliers");
-    if (stored) setSuppliers(JSON.parse(stored));
-  }, []);
-
-  // Save suppliers to localStorage
-  const saveToLocalStorage = (data: Supplier[]) => {
-    localStorage.setItem("suppliers", JSON.stringify(data));
-    setSuppliers(data);
+  // Fetch suppliers from backend
+  const fetchSuppliers = async () => {
+    try {
+      const res = await api.get<Supplier[]>("/Suppliers");
+      setSuppliers(res.data);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load suppliers.");
+    }
   };
+
+  useEffect(() => {
+    fetchSuppliers();
+  }, []);
 
   const handleShowModal = (supplier?: Supplier) => {
     if (supplier) {
       setEditingSupplier(supplier);
       setForm({
-        SupplierName: supplier.SupplierName,
-        ContactNo: supplier.ContactNo,
-        Email: supplier.Email,
-        Address: supplier.Address,
+        supplierName: supplier.supplierName,
+        contactNo: supplier.contactNo || "",
+        email: supplier.email || "",
+        address: supplier.address || "",
       });
     } else {
       setEditingSupplier(null);
-      setForm({ SupplierName: "", ContactNo: "", Email: "", Address: "" });
+      setForm({ supplierName: "", contactNo: "", email: "", address: "" });
     }
     setShowModal(true);
+    setError("");
   };
 
   const handleCloseModal = () => setShowModal(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (editingSupplier) {
-      // Update existing supplier
-      const updated = suppliers.map((s) =>
-        s.SupplierId === editingSupplier.SupplierId ? { ...editingSupplier, ...form } : s
-      );
-      saveToLocalStorage(updated);
-    } else {
-      // Add new supplier
-      const newSupplier: Supplier = {
-        SupplierId: suppliers.length > 0 ? suppliers[suppliers.length - 1].SupplierId + 1 : 1,
-        ...form,
-      };
-      saveToLocalStorage([...suppliers, newSupplier]);
+  const handleSave = async () => {
+    if (!form.supplierName.trim()) {
+      setError("Supplier Name is required.");
+      return;
     }
 
-    handleCloseModal();
+    try {
+      let savedSupplier: Supplier;
+
+      if (editingSupplier) {
+        // Update supplier
+        await api.put(`/Suppliers/${editingSupplier.supplierId}`, form);
+        savedSupplier = { supplierId: editingSupplier.supplierId, ...form };
+        setSuppliers(prev =>
+          prev.map(s => (s.supplierId === editingSupplier.supplierId ? savedSupplier : s))
+        );
+      } else {
+        // Add new supplier
+        const res = await api.post<Supplier>("/Suppliers", form);
+        savedSupplier = res.data; // backend returns Supplier with ID
+        setSuppliers(prev => [...prev, savedSupplier]);
+      }
+
+      setShowModal(false);
+      setEditingSupplier(null);
+      setForm({ supplierName: "", contactNo: "", email: "", address: "" });
+      setError("");
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.message || "Failed to save supplier.");
+    }
   };
 
-  const handleDelete = (id: number) => {
-    if (window.confirm("Are you sure you want to delete this supplier?")) {
-      const updated = suppliers.filter((s) => s.SupplierId !== id);
-      saveToLocalStorage(updated);
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this supplier?")) return;
+
+    try {
+      await api.delete(`/Suppliers/${id}`);
+      setSuppliers(prev => prev.filter(s => s.supplierId !== id));
+    } catch (err) {
+      console.error(err);
+      setError("Failed to delete supplier.");
     }
   };
 
   return (
     <div className="container mt-4">
       <h2>Supplier Management</h2>
-      <Button className="mb-3" onClick={() => handleShowModal()}>
-        + Add Supplier
-      </Button>
+
+      {error && <Alert variant="danger">{error}</Alert>}
+
+      <Button className="mb-3" onClick={() => handleShowModal()}>+ Add Supplier</Button>
 
       <Table bordered hover responsive>
         <thead className="table-dark">
@@ -102,27 +130,18 @@ const Suppliers: React.FC = () => {
         </thead>
         <tbody>
           {suppliers.length > 0 ? (
-            suppliers.map((supplier) => (
-              <tr key={supplier.SupplierId}>
-                <td>{supplier.SupplierId}</td>
-                <td>{supplier.SupplierName}</td>
-                <td>{supplier.ContactNo}</td>
-                <td>{supplier.Email}</td>
-                <td>{supplier.Address}</td>
+            suppliers.map(s => (
+              <tr key={s.supplierId}>
+                <td>{s.supplierId}</td>
+                <td>{s.supplierName}</td>
+                <td>{s.contactNo || "—"}</td>
+                <td>{s.email || "—"}</td>
+                <td>{s.address || "—"}</td>
                 <td>
-                  <Button
-                    variant="warning"
-                    size="sm"
-                    className="me-2"
-                    onClick={() => handleShowModal(supplier)}
-                  >
+                  <Button size="sm" variant="warning" className="me-2" onClick={() => handleShowModal(s)}>
                     Edit
                   </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => handleDelete(supplier.SupplierId)}
-                  >
+                  <Button size="sm" variant="danger" onClick={() => handleDelete(s.supplierId)}>
                     Delete
                   </Button>
                 </td>
@@ -130,27 +149,24 @@ const Suppliers: React.FC = () => {
             ))
           ) : (
             <tr>
-              <td colSpan={6} className="text-center text-muted">
-                No suppliers found.
-              </td>
+              <td colSpan={6} className="text-center text-muted">No suppliers found.</td>
             </tr>
           )}
         </tbody>
       </Table>
 
-      {/* Modal for Add/Edit */}
-      <Modal show={showModal} onHide={handleCloseModal}>
+      <Modal show={showModal} onHide={handleCloseModal} centered>
         <Modal.Header closeButton>
           <Modal.Title>{editingSupplier ? "Edit Supplier" : "Add Supplier"}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Form onSubmit={handleSubmit}>
+          <Form>
             <Form.Group className="mb-3">
               <Form.Label>Supplier Name</Form.Label>
               <Form.Control
                 type="text"
-                name="SupplierName"
-                value={form.SupplierName}
+                name="supplierName"
+                value={form.supplierName}
                 onChange={handleChange}
                 required
               />
@@ -160,8 +176,8 @@ const Suppliers: React.FC = () => {
               <Form.Label>Contact No</Form.Label>
               <Form.Control
                 type="text"
-                name="ContactNo"
-                value={form.ContactNo}
+                name="contactNo"
+                value={form.contactNo}
                 onChange={handleChange}
               />
             </Form.Group>
@@ -170,8 +186,8 @@ const Suppliers: React.FC = () => {
               <Form.Label>Email</Form.Label>
               <Form.Control
                 type="email"
-                name="Email"
-                value={form.Email}
+                name="email"
+                value={form.email}
                 onChange={handleChange}
               />
             </Form.Group>
@@ -181,17 +197,15 @@ const Suppliers: React.FC = () => {
               <Form.Control
                 as="textarea"
                 rows={3}
-                name="Address"
-                value={form.Address}
+                name="address"
+                value={form.address}
                 onChange={handleChange}
               />
             </Form.Group>
 
             <div className="text-end">
-              <Button variant="secondary" onClick={handleCloseModal} className="me-2">
-                Cancel
-              </Button>
-              <Button variant="primary" type="submit">
+              <Button variant="secondary" onClick={handleCloseModal} className="me-2">Cancel</Button>
+              <Button variant="primary" type="button" onClick={handleSave}>
                 {editingSupplier ? "Update" : "Add"}
               </Button>
             </div>
@@ -200,6 +214,4 @@ const Suppliers: React.FC = () => {
       </Modal>
     </div>
   );
-};
-
-export default Suppliers;
+}
