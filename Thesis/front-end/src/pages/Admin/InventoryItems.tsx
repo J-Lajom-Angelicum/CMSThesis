@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { Table, Button, Modal, Form, Alert } from "react-bootstrap";
+import { Table, Button, Modal, Form, Alert, Spinner } from "react-bootstrap";
+import api from "../../api/axios";
+
+interface Supplier {
+  supplierId: number;
+  supplierName: string;
+}
 
 type InventoryItem = {
   itemId: number;
@@ -8,13 +14,16 @@ type InventoryItem = {
   itemDescription: string;
   unit: string;
   reorderLevel: number;
-  supplierName: string;
-  quantityInStock: number;
+  supplierId?: number | null;
+  supplierName?: string;
   dateAdded: string;
 };
 
 export default function InventoryItems() {
   const [items, setItems] = useState<InventoryItem[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
@@ -24,92 +33,77 @@ export default function InventoryItems() {
     itemDescription: "",
     unit: "",
     reorderLevel: "",
-    supplierName: "",
-    quantityInStock: "",
+    supplierId: "",
   });
 
-  // 🧠 Load from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem("inventoryItems");
-    if (saved) setItems(JSON.parse(saved));
-    else {
-      // Initial mock data
-      const mockData: InventoryItem[] = [
-        {
-          itemId: 1,
-          itemName: "Amoxicillin 500mg Capsule",
-          itemCategory: "Medicine",
-          itemDescription: "Antibiotic capsule for bacterial infections",
-          unit: "box",
-          reorderLevel: 10,
-          supplierName: "MedLife Pharma",
-          quantityInStock: 15,
-          dateAdded: new Date().toISOString(),
-        },
-      ];
-      setItems(mockData);
-      localStorage.setItem("inventoryItems", JSON.stringify(mockData));
+  // 🧠 Fetch inventory items
+  const fetchItems = async () => {
+    try {
+      const res = await api.get<InventoryItem[]>("/InventoryItems");
+      setItems(res.data);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load inventory items.");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  // 🧠 Fetch suppliers for dropdown
+  const fetchSuppliers = async () => {
+    try {
+      const res = await api.get<Supplier[]>("/Suppliers");
+      setSuppliers(res.data);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load suppliers.");
+    }
+  };
+
+  useEffect(() => {
+    fetchItems();
+    fetchSuppliers();
   }, []);
 
-  // 🧩 Save to localStorage when items change
-  useEffect(() => {
-    localStorage.setItem("inventoryItems", JSON.stringify(items));
-  }, [items]);
-
-  // Form handlers
+  // 🧩 Form change handler
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = () => {
-    if (editingId) {
-      setItems(prev =>
-        prev.map(i =>
-          i.itemId === editingId
-            ? {
-                ...i,
-                ...formData,
-                reorderLevel: Number(formData.reorderLevel),
-                quantityInStock: Number(formData.quantityInStock),
-              }
-            : i
-        )
-      );
-    } else {
-      const newId =
-        items.length > 0 ? Math.max(...items.map(i => i.itemId)) + 1 : 1;
-      const newItem: InventoryItem = {
-        itemId: newId,
-        itemName: formData.itemName,
-        itemCategory: formData.itemCategory,
-        itemDescription: formData.itemDescription,
-        unit: formData.unit,
-        reorderLevel: Number(formData.reorderLevel),
-        supplierName: formData.supplierName,
-        quantityInStock: Number(formData.quantityInStock),
-        dateAdded: new Date().toISOString(),
-      };
-      setItems(prev => [...prev, newItem]);
+  // 💾 Save item (POST or PUT)
+  const handleSave = async () => {
+    const payload = {
+      itemName: formData.itemName,
+      itemCategory: formData.itemCategory,
+      itemDescription: formData.itemDescription,
+      unit: formData.unit,
+      reorderLevel: Number(formData.reorderLevel),
+      supplierId:
+        formData.supplierId === "N/A" || formData.supplierId === ""
+          ? null
+          : Number(formData.supplierId),
+    };
+
+    try {
+      if (editingId) {
+        await api.put(`/InventoryItems/${editingId}`, payload);
+      } else {
+        await api.post("/InventoryItems", payload);
+      }
+      await fetchItems();
+      handleClose();
+    } catch (err: any) {
+      console.error(err);
+      setError("Failed to save item.");
     }
-
-    // Reset
-    setShowModal(false);
-    setEditingId(null);
-    setFormData({
-      itemName: "",
-      itemCategory: "",
-      itemDescription: "",
-      unit: "",
-      reorderLevel: "",
-      supplierName: "",
-      quantityInStock: "",
-    });
   };
 
+  // ✏️ Edit handler
   const handleEdit = (item: InventoryItem) => {
     setEditingId(item.itemId);
     setFormData({
@@ -118,58 +112,76 @@ export default function InventoryItems() {
       itemDescription: item.itemDescription,
       unit: item.unit,
       reorderLevel: String(item.reorderLevel),
-      supplierName: item.supplierName,
-      quantityInStock: String(item.quantityInStock),
+      supplierId: item.supplierId ? String(item.supplierId) : "N/A",
     });
     setShowModal(true);
   };
 
-  const handleDelete = (id: number) => {
-    if (confirm("Are you sure you want to delete this item?")) {
-      setItems(prev => prev.filter(i => i.itemId !== id));
+  // ❌ Delete handler
+  const handleDelete = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this item?")) return;
+    try {
+      await api.delete(`/InventoryItems/${id}`);
+      setItems((prev) => prev.filter((i) => i.itemId !== id));
+    } catch (err) {
+      console.error(err);
+      setError("Failed to delete item.");
     }
+  };
+
+  // 🧹 Close modal + reset
+  const handleClose = () => {
+    setShowModal(false);
+    setEditingId(null);
+    setFormData({
+      itemName: "",
+      itemCategory: "",
+      itemDescription: "",
+      unit: "",
+      reorderLevel: "",
+      supplierId: "",
+    });
+    setError("");
   };
 
   return (
     <div className="container mt-4">
       <h2 className="text-teal mb-3">Inventory Items</h2>
 
+      {error && <Alert variant="danger">{error}</Alert>}
+
       <Button variant="primary" className="mb-3" onClick={() => setShowModal(true)}>
         + Add Item
       </Button>
 
-      {items.length === 0 ? (
+      {loading ? (
+        <div className="text-center mt-4">
+          <Spinner animation="border" variant="primary" />
+        </div>
+      ) : items.length === 0 ? (
         <Alert variant="info">No items found in inventory.</Alert>
       ) : (
         <Table striped bordered hover responsive>
-          <thead>
+          <thead className="table-dark">
             <tr>
               <th>ID</th>
               <th>Item Name</th>
               <th>Category</th>
               <th>Supplier</th>
               <th>Unit</th>
-              <th>Stock</th>
               <th>Reorder Level</th>
               <th>Date Added</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {items.map(i => (
+            {items.map((i) => (
               <tr key={i.itemId}>
                 <td>{i.itemId}</td>
                 <td>{i.itemName}</td>
                 <td>{i.itemCategory}</td>
-                <td>{i.supplierName}</td>
+                <td>{i.supplierName || "—"}</td>
                 <td>{i.unit}</td>
-                <td
-                  className={
-                    i.quantityInStock < i.reorderLevel ? "text-danger fw-bold" : ""
-                  }
-                >
-                  {i.quantityInStock}
-                </td>
                 <td>{i.reorderLevel}</td>
                 <td>{new Date(i.dateAdded).toLocaleDateString()}</td>
                 <td>
@@ -181,7 +193,11 @@ export default function InventoryItems() {
                   >
                     Edit
                   </Button>
-                  <Button size="sm" variant="danger" onClick={() => handleDelete(i.itemId)}>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => handleDelete(i.itemId)}
+                  >
                     Delete
                   </Button>
                 </td>
@@ -191,8 +207,8 @@ export default function InventoryItems() {
         </Table>
       )}
 
-      {/* Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)}>
+      {/* 🧾 Modal */}
+      <Modal show={showModal} onHide={handleClose} centered>
         <Modal.Header closeButton>
           <Modal.Title>{editingId ? "Edit Item" : "Add Item"}</Modal.Title>
         </Modal.Header>
@@ -248,29 +264,27 @@ export default function InventoryItems() {
               />
             </Form.Group>
 
+            {/* 🧭 Supplier Dropdown */}
             <Form.Group className="mb-3">
               <Form.Label>Supplier</Form.Label>
-              <Form.Control
-                type="text"
-                name="supplierName"
-                value={formData.supplierName}
+              <Form.Select
+                name="supplierId"
+                value={formData.supplierId}
                 onChange={handleChange}
-              />
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Quantity In Stock</Form.Label>
-              <Form.Control
-                type="number"
-                name="quantityInStock"
-                value={formData.quantityInStock}
-                onChange={handleChange}
-              />
+              >
+                <option value="">— Select Supplier —</option>
+                <option value="N/A">N/A</option>
+                {suppliers.map((s) => (
+                  <option key={s.supplierId} value={s.supplierId}>
+                    {s.supplierName}
+                  </option>
+                ))}
+              </Form.Select>
             </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
+          <Button variant="secondary" onClick={handleClose}>
             Cancel
           </Button>
           <Button variant="primary" onClick={handleSave}>

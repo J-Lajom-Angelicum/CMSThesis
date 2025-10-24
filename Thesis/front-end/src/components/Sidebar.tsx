@@ -75,7 +75,7 @@ export default function Sidebar() {
             <Nav.Link as={Link} to="/inventory-batches">Inventory Batches</Nav.Link>
             <Nav.Link as={Link} to="/inventory-usage">Inventory Usage</Nav.Link>
             <Nav.Link as={Link} to="/inventory-transactions">Inventory Transactions</Nav.Link>
-            <Nav.Link as={Link} to="/inventory-items">Inventory</Nav.Link>
+            <Nav.Link as={Link} to="/inventory-items">Inventory Items</Nav.Link>
             <Nav.Link as={Link} to="/suppliers">Suppliers</Nav.Link>
           </>
         )}
