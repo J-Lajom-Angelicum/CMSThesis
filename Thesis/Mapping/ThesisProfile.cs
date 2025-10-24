@@ -1,21 +1,22 @@
-﻿using Thesis.Models;
-using AutoMapper;
-using Thesis.DTOs.Patient;
+﻿using AutoMapper;
+using Thesis.DTOs;
 using Thesis.DTOs.Appointment;
-using Thesis.DTOs.ConsultationInventory;
 using Thesis.DTOs.Consultation;
+using Thesis.DTOs.ConsultationInventory;
 using Thesis.DTOs.Doctor;
 using Thesis.DTOs.InventoryBatch;
 using Thesis.DTOs.InventoryItem;
+using Thesis.DTOs.InventoryTransaction;
 using Thesis.DTOs.LabOrder;
 using Thesis.DTOs.LabResult;
+using Thesis.DTOs.Patient;
 using Thesis.DTOs.Payment;
 using Thesis.DTOs.QueueEntry;
 using Thesis.DTOs.Role;
 using Thesis.DTOs.Staff;
 using Thesis.DTOs.Supplier;
-using Thesis.DTOs;
 using Thesis.DTOs.User;
+using Thesis.Models;
 
 namespace Thesis.Mapping
 {
@@ -42,6 +43,10 @@ namespace Thesis.Mapping
             CreateMap<Doctor, DoctorReadDTO>();
             CreateMap<DoctorCreateDTO, Doctor>();
             CreateMap<DoctorUpdateDTO, Doctor>();
+
+            CreateMap<InventoryTransaction, InventoryTransactionReadDTO>();
+            CreateMap<InventoryTransactionCreateDTO, InventoryTransaction>();
+            CreateMap<InventoryTransactionUpdateDTO, InventoryTransaction>();
 
             CreateMap<InventoryBatch, InventoryBatchReadDTO>();
             CreateMap<InventoryBatchCreateDTO,  InventoryBatch>();
