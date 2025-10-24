@@ -1,142 +1,281 @@
-import React, { useState, useEffect } from "react";
-import { Button, Table, Form, Card } from "react-bootstrap";
+import { useEffect, useState } from "react";
+import { Table, Button, Modal, Form, Alert, Spinner } from "react-bootstrap";
+import api from "../../api/axios";
 
-interface Batch {
+interface InventoryBatch {
   batchId: number;
   itemId: number;
-  batchNumber: string;
+  itemName: string; // mapped from backend
+  batchNumber?: string;
   quantityInStock: number;
   expirationDate: string;
   dateReceived: string;
 }
 
-interface Transaction {
-  transactionId: number;
-  batchId: number;
-  quantityChange: number;
-  transactionType: string;
-  transactionDate: string;
+interface InventoryItem {
+  itemId: number;
+  itemName: string;
 }
 
 export default function InventoryBatches() {
-  const [batches, setBatches] = useState<Batch[]>([]);
-  const [itemId] = useState(1); // Example selected item
-  const [newBatch, setNewBatch] = useState({
+  const [batches, setBatches] = useState<InventoryBatch[]>([]);
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+  const [formData, setFormData] = useState({
+    itemId: "",
     batchNumber: "",
     quantityInStock: "",
     expirationDate: "",
   });
 
-  // Load from localStorage
+  // 🧠 Fetch batches
+  const fetchBatches = async () => {
+      try {
+        const [batchRes, itemRes] = await Promise.all([
+          api.get<InventoryBatch[]>("/InventoryBatches"),
+          api.get<InventoryItem[]>("/InventoryItems"),
+        ]);
+
+       const itemsMap = new Map(itemRes.data.map((i) => [i.itemId, i.itemName]));
+
+        const mappedBatches = batchRes.data.map((b) => ({
+          ...b,
+          itemName: itemsMap.get(b.itemId) || "Unknown Item",
+        }));
+
+        setBatches(mappedBatches);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load inventory batches.");
+     } finally {
+       setLoading(false);
+     }
+  };
+
+  // 🧠 Fetch items for dropdown
+  const fetchItems = async () => {
+    try {
+      const res = await api.get<InventoryItem[]>("/InventoryItems");
+      setItems(res.data);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load items for dropdown.");
+    }
+  };
+
   useEffect(() => {
-    const savedBatches = JSON.parse(localStorage.getItem("batches") || "[]");
-    setBatches(savedBatches.filter((b: Batch) => b.itemId === itemId));
-  }, [itemId]);
+    fetchBatches();
+    fetchItems();
+  }, []);
 
-  const handleAddBatch = (e: React.FormEvent) => {
-    e.preventDefault();
+  // 🧩 Handle form change (fixed TypeScript type)
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
-    const batchList = JSON.parse(localStorage.getItem("batches") || "[]");
-    const newId = batchList.length ? batchList[batchList.length - 1].batchId + 1 : 1;
-
-    const batch: Batch = {
-      batchId: newId,
-      itemId,
-      batchNumber: newBatch.batchNumber || `Batch-${newId}`,
-      quantityInStock: parseInt(newBatch.quantityInStock),
-      expirationDate: newBatch.expirationDate,
-      dateReceived: new Date().toISOString().split("T")[0],
+  // 💾 Save batch
+  const handleSave = async () => {
+    const payload = {
+      itemId: Number(formData.itemId),
+      batchNumber: formData.batchNumber,
+      quantityInStock: Number(formData.quantityInStock),
+      expirationDate: formData.expirationDate,
     };
 
-    const updated = [...batchList, batch];
-    localStorage.setItem("batches", JSON.stringify(updated));
-    setBatches(updated.filter((b: Batch) => b.itemId === itemId));
+    try {
+      if (editingId) {
+        await api.put(`/InventoryBatches/${editingId}`, payload);
+      } else {
+        await api.post("/InventoryBatches", payload);
+      }
+      await fetchBatches();
+      handleClose();
+    } catch (err) {
+      console.error(err);
+      setError("Failed to save batch.");
+    }
+  };
 
-    // Create transaction automatically
-    const txList = JSON.parse(localStorage.getItem("transactions") || "[]");
-    const newTx: Transaction = {
-      transactionId: txList.length ? txList[txList.length - 1].transactionId + 1 : 1,
-      batchId: newId,
-      quantityChange: parseInt(newBatch.quantityInStock),
-      transactionType: "Restock",
-      transactionDate: new Date().toISOString(),
-    };
-    localStorage.setItem("transactions", JSON.stringify([...txList, newTx]));
+  // ✏️ Edit batch
+  const handleEdit = (b: InventoryBatch) => {
+    setEditingId(b.batchId);
+    setFormData({
+      itemId: String(b.itemId),
+      batchNumber: b.batchNumber || "",
+      quantityInStock: String(b.quantityInStock),
+      expirationDate: b.expirationDate.split("T")[0],
+    });
+    setShowModal(true);
+  };
 
-    // Reset form
-    setNewBatch({ batchNumber: "", quantityInStock: "", expirationDate: "" });
+  // ❌ Delete batch
+  const handleDelete = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this batch?")) return;
+    try {
+      await api.delete(`/InventoryBatches/${id}`);
+      setBatches((prev) => prev.filter((b) => b.batchId !== id));
+    } catch (err) {
+      console.error(err);
+      setError("Failed to delete batch.");
+    }
+  };
+
+  // 🧹 Close modal + reset
+  const handleClose = () => {
+    setShowModal(false);
+    setEditingId(null);
+    setFormData({
+      itemId: "",
+      batchNumber: "",
+      quantityInStock: "",
+      expirationDate: "",
+    });
+    setError("");
   };
 
   return (
     <div className="container mt-4">
-      <h3 className="mb-3">Inventory Batches (Item ID #{itemId})</h3>
+      <h2 className="text-teal mb-3">Inventory Batches</h2>
 
-      <Card className="mb-4">
-        <Card.Body>
-          <h5>Add New Batch</h5>
-          <Form onSubmit={handleAddBatch} className="row g-2">
-            <div className="col-md-3">
+      {error && <Alert variant="danger">{error}</Alert>}
+
+      {/* Header with dropdown */}
+      <div className="d-flex align-items-center mb-3">
+        <Form.Label className="me-2 mb-0 fw-semibold text-teal">
+          Add New Batch of:
+        </Form.Label>
+        <Form.Select
+          name="itemId"
+          value={formData.itemId}
+          onChange={handleChange}
+          style={{ width: "250px", marginRight: "10px" }}
+        >
+          <option value="">— Select Item —</option>
+          {items.map((i) => (
+            <option key={i.itemId} value={i.itemId}>
+              {i.itemName}
+            </option>
+          ))}
+        </Form.Select>
+        <Button
+          variant="primary"
+          className="ms-auto"
+          onClick={() => setShowModal(true)}
+          disabled={!formData.itemId}
+        >
+          + Add Batch
+        </Button>
+      </div>
+
+      {loading ? (
+        <div className="text-center mt-4">
+          <Spinner animation="border" variant="primary" />
+        </div>
+      ) : batches.length === 0 ? (
+        <Alert variant="info">No inventory batches found.</Alert>
+      ) : (
+        <Table striped bordered hover responsive>
+          <thead className="table-dark">
+            <tr>
+              <th>Batch ID</th>
+              <th>Item</th>
+              <th>Batch Number</th>
+              <th>Quantity in Stock</th>
+              <th>Expiration Date</th>
+              <th>Date Received</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {batches.map((b) => (
+              <tr key={b.batchId}>
+                <td>{b.batchId}</td>
+                <td>{b.itemName}</td>
+                <td>{b.batchNumber || "—"}</td>
+                <td>{b.quantityInStock}</td>
+                <td>{new Date(b.expirationDate).toLocaleDateString()}</td>
+                <td>{new Date(b.dateReceived).toLocaleDateString()}</td>
+                <td>
+                  <Button
+                    size="sm"
+                    variant="warning"
+                    className="me-2"
+                    onClick={() => handleEdit(b)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => handleDelete(b.batchId)}
+                  >
+                    Delete
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
+
+      {/* 🧾 Modal */}
+      <Modal show={showModal} onHide={handleClose} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>{editingId ? "Edit Batch" : "Add Batch"}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Batch Number (Optional)</Form.Label>
               <Form.Control
-                placeholder="Batch Number"
-                value={newBatch.batchNumber}
-                onChange={(e) => setNewBatch({ ...newBatch, batchNumber: e.target.value })}
+                type="text"
+                name="batchNumber"
+                value={formData.batchNumber}
+                onChange={handleChange}
+                placeholder="Enter supplier batch number"
               />
-            </div>
-            <div className="col-md-3">
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Quantity In Stock</Form.Label>
               <Form.Control
                 type="number"
-                placeholder="Quantity"
-                value={newBatch.quantityInStock}
-                onChange={(e) => setNewBatch({ ...newBatch, quantityInStock: e.target.value })}
-                required
+                name="quantityInStock"
+                value={formData.quantityInStock}
+                onChange={handleChange}
+                placeholder="Enter stock quantity"
               />
-            </div>
-            <div className="col-md-3">
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Expiration Date</Form.Label>
               <Form.Control
                 type="date"
-                value={newBatch.expirationDate}
-                onChange={(e) => setNewBatch({ ...newBatch, expirationDate: e.target.value })}
-                required
+                name="expirationDate"
+                value={formData.expirationDate}
+                onChange={handleChange}
               />
-            </div>
-            <div className="col-md-3">
-              <Button type="submit" variant="success" className="w-100">
-                + Add Batch
-              </Button>
-            </div>
+            </Form.Group>
           </Form>
-        </Card.Body>
-      </Card>
-
-      <Table striped bordered hover responsive>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Batch Number</th>
-            <th>Quantity</th>
-            <th>Expiration</th>
-            <th>Date Received</th>
-          </tr>
-        </thead>
-        <tbody>
-          {batches.map((b) => (
-            <tr key={b.batchId}>
-              <td>{b.batchId}</td>
-              <td>{b.batchNumber}</td>
-              <td>{b.quantityInStock}</td>
-              <td>{b.expirationDate}</td>
-              <td>{b.dateReceived}</td>
-            </tr>
-          ))}
-          {batches.length === 0 && (
-            <tr>
-              <td colSpan={5} className="text-center text-muted">
-                No batches found.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </Table>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSave}>
+            Save
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }
