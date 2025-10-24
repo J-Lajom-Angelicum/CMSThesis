@@ -5,22 +5,33 @@ import api from "../../api/axios";
 interface Transaction {
   transactionId: number;
   batchId: number;
-  itemName: string; // mapped from backend
+  itemId: number; // from backend
   quantityChange: number;
   transactionType: string;
   transactionDate: string;
 }
 
+interface Item {
+  itemId: number;
+  itemName: string;
+}
+
 export default function InventoryTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const fetchTransactions = async () => {
+    const fetchData = async () => {
       try {
-        const res = await api.get<Transaction[]>("/InventoryTransactions");
-        setTransactions(res.data);
+        // Fetch transactions and items in parallel
+        const [transRes, itemsRes] = await Promise.all([
+          api.get<Transaction[]>("/InventoryTransactions"),
+          api.get<Item[]>("/InventoryItems"),
+        ]);
+        setTransactions(transRes.data);
+        setItems(itemsRes.data);
       } catch (err) {
         console.error(err);
         setError("Failed to load inventory transactions.");
@@ -29,8 +40,14 @@ export default function InventoryTransactions() {
       }
     };
 
-    fetchTransactions();
+    fetchData();
   }, []);
+
+  // Helper to get item name by ID
+  const getItemName = (itemId: number) => {
+    const item = items.find((i) => i.itemId === itemId);
+    return item ? item.itemName : `Item #${itemId}`;
+  };
 
   return (
     <div className="container mt-4">
@@ -59,7 +76,7 @@ export default function InventoryTransactions() {
               transactions.map((t) => (
                 <tr key={t.transactionId}>
                   <td>{t.transactionId}</td>
-                  <td>{t.itemName}</td>
+                  <td>{getItemName(t.itemId)}</td>
                   <td>{t.batchId}</td>
                   <td>{t.transactionType}</td>
                   <td
