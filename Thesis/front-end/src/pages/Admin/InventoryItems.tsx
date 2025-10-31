@@ -36,33 +36,22 @@ export default function InventoryItems() {
     supplierId: "",
   });
 
-  // 🧠 Fetch inventory items
-  const fetchItems = async () => {
-    try {
-      const res = await api.get<InventoryItem[]>("/InventoryItems");
-      setItems(res.data);
-    } catch (err) {
-      console.error(err);
-      setError("Failed to load inventory items.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 🧠 Fetch suppliers for dropdown
-  const fetchSuppliers = async () => {
-    try {
-      const res = await api.get<Supplier[]>("/Suppliers");
-      setSuppliers(res.data);
-    } catch (err) {
-      console.error(err);
-      setError("Failed to load suppliers.");
-    }
-  };
-
+  // 🧠 Load both items + suppliers together
   useEffect(() => {
-    fetchItems();
-    fetchSuppliers();
+    Promise.all([api.get("/InventoryItems"), api.get("/Suppliers")])
+      .then(([itemRes, supplierRes]) => {
+        setSuppliers(supplierRes.data);
+        const supplierMap = new Map(
+          supplierRes.data.map((s: Supplier) => [s.supplierId, s.supplierName])
+        );
+        const merged = itemRes.data.map((i: InventoryItem) => ({
+          ...i,
+          supplierName: supplierMap.get(i.supplierId) || "—",
+        }));
+        setItems(merged);
+      })
+      .catch(() => setError("Failed to load inventory items."))
+      .finally(() => setLoading(false));
   }, []);
 
   // 🧩 Form change handler
@@ -95,7 +84,21 @@ export default function InventoryItems() {
       } else {
         await api.post("/InventoryItems", payload);
       }
-      await fetchItems();
+
+      // Refresh list efficiently
+      const [itemRes, supplierRes] = await Promise.all([
+        api.get("/InventoryItems"),
+        api.get("/Suppliers"),
+      ]);
+      const supplierMap = new Map(
+        supplierRes.data.map((s: Supplier) => [s.supplierId, s.supplierName])
+      );
+      const merged = itemRes.data.map((i: InventoryItem) => ({
+        ...i,
+        supplierName: supplierMap.get(i.supplierId) || "—",
+      }));
+      setItems(merged);
+
       handleClose();
     } catch (err: any) {
       console.error(err);
@@ -150,7 +153,11 @@ export default function InventoryItems() {
 
       {error && <Alert variant="danger">{error}</Alert>}
 
-      <Button variant="primary" className="mb-3" onClick={() => setShowModal(true)}>
+      <Button
+        variant="primary"
+        className="mb-3"
+        onClick={() => setShowModal(true)}
+      >
         + Add Item
       </Button>
 
