@@ -24,6 +24,10 @@ namespace Thesis.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ConsultationReadDTO>>> GetConsultations()
         {
+            if (_context.Consultations == null)
+            {
+                return NotFound();
+            }
             var consultation = await _context.Consultations
                 .Include(a => a.Patient)
                 .Include(a => a.Doctor)
@@ -46,7 +50,38 @@ namespace Thesis.Controllers
             
             return Ok(_mapper.Map<IEnumerable<ConsultationReadDTO>>(consultations));
         }
-        
+
+        //GET: api/Consultation/searchbydate?consultationDate=2024-06-15
+        [HttpGet("searchbydate")]
+        public async Task<ActionResult<IEnumerable<ConsultationReadDTO>>> SearchConsultationsByDate([
+            FromQuery] DateTime consultationDate)
+        {
+            if (consultationDate == null)
+                return BadRequest("Consultation date query parameter is required.");
+            var consultations = await _context.Consultations
+                .Include(c => c.Patient)
+                .Include(c => c.Doctor)
+                .Where(c => c.ConsultationDate.Date == consultationDate.Date)
+                .ToListAsync();
+
+            return Ok(_mapper.Map<IEnumerable<ConsultationReadDTO>>(consultations));
+        }
+
+        //GET: api/Consultation/searchbydoctor?doctorId=3
+        [HttpGet("searchbydoctor")]
+        public async Task<ActionResult<IEnumerable<ConsultationReadDTO>>> SearchConsultationsByDoctor([
+            FromQuery] int doctorId)
+        {
+            if (doctorId <= 0)
+                return BadRequest("Valid doctor ID query parameter is required.");
+            var consultations = await _context.Consultations
+                .Include(c => c.Patient)
+                .Include(c => c.Doctor)
+                .Where(c => c.DoctorId == doctorId)
+                .ToListAsync();
+
+            return Ok(_mapper.Map<IEnumerable<ConsultationReadDTO>>(consultations));
+        }        
 
         // GET: api/Consultations/5
         [HttpGet("{id}")]
