@@ -32,6 +32,22 @@ namespace Thesis.Controllers
             return Ok(_mapper.Map<IEnumerable<ConsultationReadDTO>>(consultation));
         }
 
+        //GET: api/Consultation/search?lastName=Smith
+        [HttpGet("search")]
+        public async Task<ActionResult<IEnumerable<ConsultationReadDTO>>> SearchConsultations([FromQuery] string lastName)
+        {
+            if (string.IsNullOrWhiteSpace(lastName))
+                return BadRequest("Last name query parameter is required.");
+            var consultations = await _context.Consultations
+                .Include(c => c.Patient)
+                .Include(c => c.Doctor)
+                .Where(c => c.Patient.LastName.Contains(lastName))
+                .ToListAsync();
+            
+            return Ok(_mapper.Map<IEnumerable<ConsultationReadDTO>>(consultations));
+        }
+        
+
         // GET: api/Consultations/5
         [HttpGet("{id}")]
         public async Task<ActionResult<ConsultationReadDTO>> GetConsultation(int id)
