@@ -10,12 +10,11 @@ var builder = WebApplication.CreateBuilder(args);
 // Add CORS policy
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
-    {
-        policy.WithOrigins("http://localhost:5173") // React dev server
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
+    options.AddPolicy("AllowAll",
+        policy => policy
+            .AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader());
 });
 builder.Services.AddControllers();
 
@@ -76,7 +75,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseCors();
+app.UseRouting();
+app.UseCors("AllowAll");
+
 
 app.UseAuthorization();
 
