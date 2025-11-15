@@ -33,7 +33,7 @@ namespace Thesis.Controllers
         }
 
         //GET: api/Consultation/search?lastName=Smith
-        [HttpGet("search")]
+        [HttpGet("searchbylastname")]
         public async Task<ActionResult<IEnumerable<ConsultationReadDTO>>> SearchConsultations([FromQuery] string lastName)
         {
             if (string.IsNullOrWhiteSpace(lastName))
