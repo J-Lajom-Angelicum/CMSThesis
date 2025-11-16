@@ -64,6 +64,25 @@ namespace Thesis.Controllers
             _context.Users.Add(User);
             await _context.SaveChangesAsync();
 
+             // --- NEW: if user is a doctor, create corresponding row in Doctors ---
+             var doctorRoleId = await _context.Roles
+                .Where(r => r.RoleName == "DOCTOR")
+                .Select(r => r.RoleId)
+                 .FirstOrDefaultAsync();
+
+                if (User.RoleId == doctorRoleId)
+                {
+                _context.Doctors.Add(new Doctor
+                  {
+                     UserId = User.UserId,
+                     FirstName = "TBD",   // optional: you can allow user to set later
+                     LastName = "TBD",
+                    Specialty = "TBD",    // optional: you can allow user to set later
+                    LicenseNo = "TBD"
+                    });
+        await _context.SaveChangesAsync();
+                    }
+
             var readDto = _mapper.Map<UserReadDTO>(User);
             return CreatedAtAction(nameof(GetUser), new { id = User.UserId }, readDto);
         }
