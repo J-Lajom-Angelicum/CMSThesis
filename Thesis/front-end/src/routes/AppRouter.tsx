@@ -25,6 +25,7 @@ import InventoryCard from "../pages/Admin/InventoryCard";
 import Suppliers from "../pages/Admin/Suppliers";
 
 // Doctor pages
+import MyProfile from "../pages/Doctor/MyProfile"; // recently added
 import PatientList from "../pages/Doctor/PatientList";
 import PatientForm from "../pages/Doctor/PatientForm";
 import Consultations from "../pages/Doctor/Consultations";
@@ -213,6 +214,20 @@ export default function AppRouter() {
           </ProtectedRoute>
         }
       />
+
+      {/* ---------- DOCTOR-ONLY ROUTES ---------- */}
+      <Route
+        path="/doctor/myprofile"
+        element={
+        <ProtectedRoute allowedRoles={[1]}>
+          <MyProfile />
+          </ProtectedRoute>
+        }
+      />
+
     </Routes>
+
+
+
   );
 }

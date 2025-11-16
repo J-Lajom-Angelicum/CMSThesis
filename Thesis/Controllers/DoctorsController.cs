@@ -82,5 +82,26 @@ namespace Thesis.Controllers
             return NoContent();
         }
 
+        [HttpGet("by-user/{userId}")]
+        public async Task<ActionResult<DoctorReadDTO>> GetDoctorByUserId(int userId)
+        {
+            var doctor = await _context.Doctors.FirstOrDefaultAsync(d => d.UserId == userId);
+            if (doctor == null) return NotFound();
+            return Ok(_mapper.Map<DoctorReadDTO>(doctor));
+        }
+
+        // PUT: api/Doctors/by-user/5
+        [HttpPut("by-user/{userId}")]
+        public async Task<IActionResult> UpdateDoctorByUserId(int userId, DoctorUpdateDTO dto)
+        {
+            var doctor = await _context.Doctors.FirstOrDefaultAsync(d => d.UserId == userId);
+            if (doctor == null) return NotFound();
+
+            _mapper.Map(dto, doctor);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }   
+
     }
 }

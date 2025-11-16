@@ -12,6 +12,7 @@ const roleMap: Record<number, "DOCTOR" | "STAFF" | "ADMIN"> = {
 export type Role = "ADMIN" | "DOCTOR" | "STAFF" | null;
 
 interface AuthContextType {
+  userId: number | null; //recently added
   user: string | null;
   role: Role;
   roleId: number | null;
@@ -27,6 +28,10 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [userId, setUserId] = useState<number | null>(() => {
+    const stored = localStorage.getItem("userId");
+    return stored ? parseInt(stored, 10) : null;
+  }); // recently added
   const [user, setUser] = useState<string | null>(() => localStorage.getItem("user"));
   const [role, setRole] = useState<Role>(() => (localStorage.getItem("role") as Role) || null);
   const [roleId, setRoleId] = useState<number | null>(() => {
@@ -35,6 +40,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   });
 
   // Persist login info
+  useEffect(() => (userId !== null ? localStorage.setItem("userId", String(userId)) : localStorage.removeItem("userId")), [userId]); //recently added
   useEffect(() => (user ? localStorage.setItem("user", user) : localStorage.removeItem("user")), [user]);
   useEffect(() => (role ? localStorage.setItem("role", role) : localStorage.removeItem("role")), [role]);
   useEffect(() => (roleId !== null ? localStorage.setItem("roleId", String(roleId)) : localStorage.removeItem("roleId")), [roleId]);
@@ -51,6 +57,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!userData.isActive) return false; // block inactive accounts
 
       // Set frontend state
+      setUserId(userData.userId); // recently added
       setUser(userData.username);
       setRoleId(userData.roleId);
       setRole(roleMap[userData.roleId]);
@@ -63,16 +70,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
+    setUserId(null); // recently added
     setUser(null);
     setRole(null);
     setRoleId(null);
+    localStorage.removeItem("userId"); // recently added
     localStorage.removeItem("user");
     localStorage.removeItem("role");
     localStorage.removeItem("roleId");
   };
 
   return (
-    <AuthContext.Provider value={{ user, role, roleId, login, logout }}>
+    <AuthContext.Provider value={{ userId// recently added//
+    , user, role, roleId, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

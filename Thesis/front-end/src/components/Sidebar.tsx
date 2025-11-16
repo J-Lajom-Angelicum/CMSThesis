@@ -27,6 +27,7 @@ export default function Sidebar() {
         {/* Doctor */}
         {roleId === 1 && (
           <>
+            <Nav.Link as={Link} to="/doctor/myprofile">My Profile</Nav.Link>
             <Nav.Link as={Link} to="/patients">Patients</Nav.Link>
             <Nav.Link as={Link} to="/appointments">Appointments</Nav.Link>
             <Nav.Link as={Link} to="/consultations">Consultations</Nav.Link>
