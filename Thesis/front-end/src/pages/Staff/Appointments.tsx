@@ -1,6 +1,7 @@
 // src/pages/Staff/Appointments.tsx
 import { useEffect, useState } from "react";
 import { Table, Button, Modal, Form, Alert, Spinner } from "react-bootstrap";
+import Select from "react-select";
 import api from "../../api/axios";
 
 interface Patient {
@@ -35,7 +36,6 @@ export default function Appointments() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-
   const [formData, setFormData] = useState({
     patientId: "",
     doctorId: "",
@@ -44,7 +44,7 @@ export default function Appointments() {
     appointmentStatus: "Booked" as Appointment["appointmentStatus"],
   });
 
-  // Load all data
+  // Load data
   const loadData = async () => {
     try {
       setLoading(true);
@@ -53,7 +53,6 @@ export default function Appointments() {
         api.get("/doctors"),
         api.get("/appointments"),
       ]);
-
       setPatients(patientsRes.data);
       setDoctors(doctorsRes.data);
       setAppointments(appointmentsRes.data);
@@ -65,9 +64,7 @@ export default function Appointments() {
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   const handleChange = (e: React.ChangeEvent<any>) => {
     const { name, value } = e.target;
@@ -101,13 +98,9 @@ export default function Appointments() {
     };
 
     try {
-      if (editingId) {
-        // Update existing
-        await api.put(`/appointments/${editingId}`, dto);
-      } else {
-        // Create new
-        await api.post("/appointments", dto);
-      }
+      if (editingId) await api.put(`/appointments/${editingId}`, dto);
+      else await api.post("/appointments", dto);
+
       await loadData();
       resetForm();
     } catch (err: any) {
@@ -133,20 +126,42 @@ export default function Appointments() {
       const existing = appointments.find(a => a.appointmentId === id);
       if (!existing) return alert("Appointment not found.");
 
-      const dto = {
-        patientId: existing.patientId,
-        doctorId: existing.doctorId,
-        appointmentDateTime: existing.appointmentDateTime,
-        notes: existing.notes,
+      await api.put(`/appointments/${id}`, {
+        ...existing,
         appointmentStatus: status,
-      };
-
-      await api.put(`/appointments/${id}`, dto);
+      });
       await loadData();
     } catch (err) {
       console.error(err);
       alert("Failed to update status.");
     }
+  };
+
+  // React Select theme integration with CSS variables
+  const reactSelectStyles = {
+    control: (provided: any, state: any) => ({
+      ...provided,
+      backgroundColor: "var(--card-bg)",
+      color: "var(--text-color)",
+      borderColor: "var(--accent-color)",
+      borderRadius: "6px",
+      boxShadow: state.isFocused ? "0 0 0 0.2rem rgba(0,150,136,0.25)" : "none",
+      "&:hover": { borderColor: "var(--accent-color)" },
+    }),
+    menu: (provided: any) => ({
+      ...provided,
+      backgroundColor: "var(--card-bg)",
+      color: "var(--text-color)",
+    }),
+    option: (provided: any, state: any) => ({
+      ...provided,
+      backgroundColor: state.isFocused ? "var(--sidebar-link-hover)" : "var(--card-bg)",
+      color: state.isFocused ? "var(--bg-color)" : "var(--text-color)",
+      cursor: "pointer",
+    }),
+    singleValue: (provided: any) => ({ ...provided, color: "var(--text-color)" }),
+    placeholder: (provided: any) => ({ ...provided, color: "var(--text-color)" }),
+    input: (provided: any) => ({ ...provided, color: "var(--text-color)" }),
   };
 
   return (
@@ -158,9 +173,7 @@ export default function Appointments() {
       </Button>
 
       {loading ? (
-        <div className="text-center my-4">
-          <Spinner animation="border" />
-        </div>
+        <div className="text-center my-4"><Spinner animation="border" /></div>
       ) : appointments.length === 0 ? (
         <Alert variant="info">No appointments available.</Alert>
       ) : (
@@ -203,16 +216,27 @@ export default function Appointments() {
         </Modal.Header>
         <Modal.Body>
           <Form>
+            {/* Patient Select (searchable) */}
             <Form.Group className="mb-3">
               <Form.Label>Patient</Form.Label>
-              <Form.Select name="patientId" value={formData.patientId} onChange={handleChange}>
-                <option value="">Select Patient</option>
-                {patients.map(p => (
-                  <option key={p.patientId} value={p.patientId}>{p.firstName} {p.lastName}</option>
-                ))}
-              </Form.Select>
+              <Select
+                options={patients.map(p => ({ value: p.patientId, label: `${p.firstName} ${p.lastName}` }))}
+                value={
+                  formData.patientId
+                    ? {
+                        value: Number(formData.patientId),
+                        label: `${patients.find(p => p.patientId === Number(formData.patientId))?.firstName} ${patients.find(p => p.patientId === Number(formData.patientId))?.lastName}`,
+                      }
+                    : null
+                }
+                onChange={selected => setFormData(prev => ({ ...prev, patientId: String(selected?.value || "") }))}
+                isClearable
+                placeholder="Select Patient..."
+                styles={reactSelectStyles}
+              />
             </Form.Group>
 
+            {/* Doctor dropdown */}
             <Form.Group className="mb-3">
               <Form.Label>Doctor</Form.Label>
               <Form.Select name="doctorId" value={formData.doctorId} onChange={handleChange}>
@@ -225,7 +249,12 @@ export default function Appointments() {
 
             <Form.Group className="mb-3">
               <Form.Label>Date & Time</Form.Label>
-              <Form.Control type="datetime-local" name="appointmentDateTime" value={formData.appointmentDateTime} onChange={handleChange} />
+              <Form.Control
+                type="datetime-local"
+                name="appointmentDateTime"
+                value={formData.appointmentDateTime}
+                onChange={handleChange}
+              />
             </Form.Group>
 
             <Form.Group className="mb-3">

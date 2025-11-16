@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { Table, Button, Modal, Form, Alert, Spinner } from "react-bootstrap";
+import Select from "react-select";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../api/axios";
 
@@ -24,7 +25,7 @@ interface Consultation {
   consultationId: number;
   patientId: number;
   doctorId: number;
-  appointmentId?: number | null; // ✅ Allow null here
+  appointmentId?: number | null;
   consultationDate: string;
   notes: string;
   diagnosis: string;
@@ -138,7 +139,6 @@ export default function Consultations() {
         savedConsultation = res.data;
       }
 
-      // 🔗 Update linked QueueEntry if appointmentId exists
       if (dto.appointmentId) {
         const linkedQueue = queue.find(q => q.appointmentId === dto.appointmentId);
         if (linkedQueue) {
@@ -147,8 +147,6 @@ export default function Consultations() {
             DoctorId: linkedQueue.doctorId,
             ConsultationId: savedConsultation.consultationId,
           });
-
-          // Update UI immediately
           setQueue(prev =>
             prev.map(q =>
               q.queueEntryId === linkedQueue.queueEntryId
@@ -195,18 +193,51 @@ export default function Consultations() {
   };
 
   const displayedConsultations = useMemo(() => {
-    if (isDoctor) {
-      return consultations.filter(c => c.doctorId === Number(localStorage.getItem("doctorId")));
-    }
+    if (isDoctor)
+      return consultations.filter(
+        c => c.doctorId === Number(localStorage.getItem("doctorId"))
+      );
     return consultations;
   }, [consultations, isDoctor]);
+
+  const selectStyles = {
+    control: (provided: any, state: any) => ({
+      ...provided,
+      backgroundColor: "var(--card-bg)",
+      color: "var(--text-color)",
+      borderColor: "var(--accent-color)",
+      borderRadius: "6px",
+      boxShadow: state.isFocused
+        ? "0 0 0 0.2rem rgba(0,150,136,0.25)"
+        : "none",
+      "&:hover": { borderColor: "var(--accent-color)" },
+    }),
+    menu: (provided: any) => ({
+      ...provided,
+      backgroundColor: "var(--card-bg)",
+      color: "var(--text-color)",
+    }),
+    option: (provided: any, state: any) => ({
+      ...provided,
+      backgroundColor: state.isFocused ? "var(--sidebar-link-hover)" : "var(--card-bg)",
+      color: state.isFocused ? "var(--bg-color)" : "var(--text-color)",
+      cursor: "pointer",
+    }),
+    singleValue: (provided: any) => ({ ...provided, color: "var(--text-color)" }),
+    placeholder: (provided: any) => ({ ...provided, color: "var(--text-color)" }),
+    input: (provided: any) => ({ ...provided, color: "var(--text-color)" }),
+  };
 
   return (
     <div className="container mt-4">
       <h2>Consultations</h2>
 
       {(isAdmin || isDoctor) && (
-        <Button variant="primary" className="mb-3" onClick={() => setShowModal(true)}>
+        <Button
+          variant="primary"
+          className="mb-3"
+          onClick={() => setShowModal(true)}
+        >
           + New Consultation
         </Button>
       )}
@@ -236,8 +267,14 @@ export default function Consultations() {
             {displayedConsultations.map(c => (
               <tr key={c.consultationId}>
                 <td>{c.consultationId}</td>
-                <td>{patients.find(p => p.patientId === c.patientId)?.firstName}{" "}{patients.find(p => p.patientId === c.patientId)?.lastName}</td>
-                <td>{doctors.find(d => d.doctorId === c.doctorId)?.firstName}{" "}{doctors.find(d => d.doctorId === c.doctorId)?.lastName}</td>
+                <td>
+                  {patients.find(p => p.patientId === c.patientId)?.firstName}{" "}
+                  {patients.find(p => p.patientId === c.patientId)?.lastName}
+                </td>
+                <td>
+                  {doctors.find(d => d.doctorId === c.doctorId)?.firstName}{" "}
+                  {doctors.find(d => d.doctorId === c.doctorId)?.lastName}
+                </td>
                 <td>{c.appointmentId || "-"}</td>
                 <td>{new Date(c.consultationDate).toLocaleString()}</td>
                 <td>{c.diagnosis}</td>
@@ -245,9 +282,22 @@ export default function Consultations() {
                 <td>{c.notes}</td>
                 {(isAdmin || isDoctor) && (
                   <td>
-                    <Button size="sm" variant="warning" onClick={() => handleEdit(c)}>Edit</Button>
+                    <Button
+                      size="sm"
+                      variant="warning"
+                      onClick={() => handleEdit(c)}
+                    >
+                      Edit
+                    </Button>
                     {isAdmin && (
-                      <Button size="sm" variant="danger" className="ms-2" onClick={() => handleDelete(c.consultationId)}>Delete</Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        className="ms-2"
+                        onClick={() => handleDelete(c.consultationId)}
+                      >
+                        Delete
+                      </Button>
                     )}
                   </td>
                 )}
@@ -260,66 +310,161 @@ export default function Consultations() {
       {/* MODAL */}
       <Modal show={showModal} onHide={resetForm}>
         <Modal.Header closeButton>
-          <Modal.Title>{editingId ? "Edit Consultation" : "New Consultation"}</Modal.Title>
+          <Modal.Title>
+            {editingId ? "Edit Consultation" : "New Consultation"}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form>
+            {/* Patient */}
             <Form.Group className="mb-3">
               <Form.Label>Patient</Form.Label>
-              <Form.Select name="patientId" value={formData.patientId} onChange={handleChange} disabled={isStaff}>
-                <option value="">Select Patient</option>
-                {patients.map(p => (
-                  <option key={p.patientId} value={p.patientId}>{p.firstName} {p.lastName}</option>
-                ))}
-              </Form.Select>
+              <Select
+                options={patients.map(p => ({
+                  value: p.patientId,
+                  label: `${p.firstName} ${p.lastName}`,
+                }))}
+                value={
+                  formData.patientId
+                    ? {
+                        value: Number(formData.patientId),
+                        label: `${patients.find(
+                          p => p.patientId === Number(formData.patientId)
+                        )?.firstName} ${
+                          patients.find(
+                            p => p.patientId === Number(formData.patientId)
+                          )?.lastName
+                        }`,
+                      }
+                    : null
+                }
+                onChange={selected =>
+                  setFormData(prev => ({
+                    ...prev,
+                    patientId: String(selected?.value || ""),
+                  }))
+                }
+                isClearable
+                placeholder="Select Patient..."
+                styles={selectStyles}
+                isDisabled={isStaff}
+              />
             </Form.Group>
 
+            {/* Doctor */}
             <Form.Group className="mb-3">
               <Form.Label>Doctor</Form.Label>
-              <Form.Select name="doctorId" value={formData.doctorId} onChange={handleChange} disabled={isDoctor || isStaff}>
+              <Form.Select
+                name="doctorId"
+                value={formData.doctorId}
+                onChange={handleChange}
+                disabled={isDoctor || isStaff}
+              >
                 <option value="">Select Doctor</option>
                 {doctors.map(d => (
-                  <option key={d.doctorId} value={d.doctorId}>{d.firstName} {d.lastName}</option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Appointment (optional)</Form.Label>
-              <Form.Select name="appointmentId" value={formData.appointmentId} onChange={handleChange}>
-                <option value="">None</option>
-                {appointments.map(a => (
-                  <option key={a.appointmentId} value={a.appointmentId}>
-                    {a.appointmentId} — {new Date(a.appointmentDateTime).toLocaleString()}
+                  <option key={d.doctorId} value={d.doctorId}>
+                    {d.firstName} {d.lastName}
                   </option>
                 ))}
               </Form.Select>
             </Form.Group>
 
+            {/* Appointment */}
+            <Form.Group className="mb-3">
+              <Form.Label>Appointment (optional)</Form.Label>
+              <Select
+                options={appointments.map(a => ({
+                  value: a.appointmentId,
+                  label: `${a.appointmentId} — ${new Date(
+                    a.appointmentDateTime
+                  ).toLocaleString()}`,
+                }))}
+                value={
+                  formData.appointmentId
+                    ? {
+                        value: Number(formData.appointmentId),
+                        label: `${formData.appointmentId} — ${new Date(
+                          appointments.find(
+                            a =>
+                              a.appointmentId ===
+                              Number(formData.appointmentId)
+                          )?.appointmentDateTime || ""
+                        ).toLocaleString()}`,
+                      }
+                    : null
+                }
+                onChange={selected =>
+                  setFormData(prev => ({
+                    ...prev,
+                    appointmentId: String(selected?.value || ""),
+                  }))
+                }
+                isClearable
+                placeholder="Select Appointment..."
+                styles={selectStyles}
+                isSearchable
+                filterOption={(option, input) =>
+                  option.label.toLowerCase().includes(input.toLowerCase())
+                }
+              />
+            </Form.Group>
+
+            {/* Date */}
             <Form.Group className="mb-3">
               <Form.Label>Date</Form.Label>
-              <Form.Control type="datetime-local" name="consultationDate" value={formData.consultationDate} onChange={handleChange} />
+              <Form.Control
+                type="datetime-local"
+                name="consultationDate"
+                value={formData.consultationDate}
+                onChange={handleChange}
+              />
             </Form.Group>
 
+            {/* Diagnosis */}
             <Form.Group className="mb-3">
               <Form.Label>Diagnosis</Form.Label>
-              <Form.Control type="text" name="diagnosis" value={formData.diagnosis} onChange={handleChange} />
+              <Form.Control
+                type="text"
+                name="diagnosis"
+                value={formData.diagnosis}
+                onChange={handleChange}
+              />
             </Form.Group>
 
+            {/* Treatment */}
             <Form.Group className="mb-3">
               <Form.Label>Treatment</Form.Label>
-              <Form.Control as="textarea" rows={2} name="treatment" value={formData.treatment} onChange={handleChange} />
+              <Form.Control
+                as="textarea"
+                rows={2}
+                name="treatment"
+                value={formData.treatment}
+                onChange={handleChange}
+              />
             </Form.Group>
 
+            {/* Notes */}
             <Form.Group className="mb-3">
               <Form.Label>Notes</Form.Label>
-              <Form.Control as="textarea" rows={3} name="notes" value={formData.notes} onChange={handleChange} />
+              <Form.Control
+                as="textarea"
+                rows={3}
+                name="notes"
+                value={formData.notes}
+                onChange={handleChange}
+              />
             </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={resetForm}>Close</Button>
-          {(isAdmin || isDoctor) && <Button variant="primary" onClick={handleSave}>Save</Button>}
+          <Button variant="secondary" onClick={resetForm}>
+            Close
+          </Button>
+          {(isAdmin || isDoctor) && (
+            <Button variant="primary" onClick={handleSave}>
+              Save
+            </Button>
+          )}
         </Modal.Footer>
       </Modal>
     </div>
