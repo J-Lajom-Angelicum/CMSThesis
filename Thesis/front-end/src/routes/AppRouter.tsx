@@ -76,7 +76,7 @@ export default function AppRouter() {
       <Route
         path="/queue-entries"
         element={
-          <ProtectedRoute allowedRoles={[3]}>
+          <ProtectedRoute allowedRoles={[2,3]}>
             <QueueEntries />
           </ProtectedRoute>
         }
@@ -94,7 +94,7 @@ export default function AppRouter() {
       <Route
         path="/patients/create"
         element={
-          <ProtectedRoute allowedRoles={[1, 3]}>
+          <ProtectedRoute allowedRoles={[2, 3]}>
             <PatientForm mode="create" />
           </ProtectedRoute>
         }
@@ -102,7 +102,7 @@ export default function AppRouter() {
       <Route
         path="/patients/:id/edit"
         element={
-          <ProtectedRoute allowedRoles={[1, 3]}>
+          <ProtectedRoute allowedRoles={[2, 3]}>
             <PatientForm mode="edit" />
           </ProtectedRoute>
         }
