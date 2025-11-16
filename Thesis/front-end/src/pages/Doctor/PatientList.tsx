@@ -19,7 +19,8 @@ export default function PatientList() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const canCreateOrEdit = role === "ADMIN" || role === "DOCTOR";
+  // Only Staff (2) and Admin (3) can add/edit
+  const canCreateOrEdit = role === "ADMIN" || role === "STAFF";
 
   // Fetch patients from API
   useEffect(() => {
@@ -30,19 +31,20 @@ export default function PatientList() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleDelete = async (id: number) => {
-    if (role !== "ADMIN") return;
-    if (!confirm("Delete patient? This action cannot be undone.")) return;
+ // Only Admin (3) can delete
+const handleDelete = async (id: number) => {
+  if (role !== "ADMIN") return;
+  if (!confirm("Delete patient? This action cannot be undone.")) return;
 
-    try {
-      await api.delete(`/patients/${id}`);
-      setPatients((prev) => prev.filter((p) => p.patientId !== id));
-      alert("Patient deleted successfully.");
-    } catch (err) {
-      console.error(err);
-      alert("Failed to delete patient.");
-    }
-  };
+  try {
+    await api.delete(`/patients/${id}`);
+    setPatients((prev) => prev.filter((p) => p.patientId !== id));
+    alert("Patient deleted successfully.");
+  } catch (err) {
+    console.error(err);
+    alert("Failed to delete patient.");
+  }
+};
 
   if (loading) return <p>Loading patients...</p>;
 
