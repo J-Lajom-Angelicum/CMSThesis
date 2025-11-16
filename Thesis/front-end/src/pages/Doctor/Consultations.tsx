@@ -276,7 +276,7 @@ export default function Consultations() {
 
             <Form.Group className="mb-3">
               <Form.Label>Doctor</Form.Label>
-              <Form.Select name="doctorId" value={formData.doctorId} onChange={handleChange} disabled={isDoctor || isStaff}>
+              <Form.Select name="doctorId" value={formData.doctorId} onChange={handleChange} disabled={isStaff}>
                 <option value="">Select Doctor</option>
                 {doctors.map(d => (
                   <option key={d.doctorId} value={d.doctorId}>{d.firstName} {d.lastName}</option>
