@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { Table, Button, Modal, Form, Alert } from "react-bootstrap";
+import Select from "react-select";
+import type { SingleValue } from "react-select";
 import api from "../../api/axios";
 
 interface LabOrder {
@@ -69,9 +71,7 @@ export default function LabResults() {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const resetForm = () =>
     setFormData({
@@ -83,9 +83,17 @@ export default function LabResults() {
       notes: "",
     });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // React Select handler
+  const handleLabOrderChange = (selected: SingleValue<{ value: number; label: string }>) => {
+    setFormData((prev) => ({
+      ...prev,
+      labOrderId: selected ? String(selected.value) : "",
+    }));
   };
 
   const handleSave = async () => {
@@ -101,7 +109,7 @@ export default function LabResults() {
       unit: formData.unit || null,
       referenceRange: formData.referenceRange || null,
       notes: formData.notes || null,
-      dateReported: new Date().toISOString().split("T")[0], // SQL DATE format
+      dateReported: new Date().toISOString().split("T")[0],
     };
 
     try {
@@ -144,6 +152,12 @@ export default function LabResults() {
       setError("Failed to delete lab result");
     }
   };
+
+  // Options for React Select
+  const labOrderOptions = labOrders.map((o) => ({
+    value: o.labOrderId,
+    label: `Order #${o.labOrderId} - ${o.patientName}`,
+  }));
 
   return (
     <div className="container mt-4">
@@ -193,16 +207,16 @@ export default function LabResults() {
         </Modal.Header>
         <Modal.Body>
           <Form>
+            {/* Lab Order */}
             <Form.Group className="mb-3">
               <Form.Label>Lab Order</Form.Label>
-              <Form.Select name="labOrderId" value={formData.labOrderId} onChange={handleChange}>
-                <option value="">Select Lab Order</option>
-                {labOrders.map((o) => (
-                  <option key={o.labOrderId} value={o.labOrderId}>
-                    {`Order #${o.labOrderId} - ${o.patientName}`}
-                  </option>
-                ))}
-              </Form.Select>
+              <Select
+                options={labOrderOptions}
+                value={labOrderOptions.find(opt => opt.value === Number(formData.labOrderId)) || null}
+                onChange={handleLabOrderChange}
+                isClearable
+                placeholder="Select Lab Order"
+              />
             </Form.Group>
 
             <Form.Group className="mb-3">

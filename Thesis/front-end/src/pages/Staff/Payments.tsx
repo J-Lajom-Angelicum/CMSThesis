@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { Table, Button, Modal, Form, Alert } from "react-bootstrap";
+import Select from "react-select";
+import type { SingleValue } from "react-select";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../api/axios";
 
@@ -42,15 +44,19 @@ interface Payment {
   recordedByUserId: number;
 }
 
-// ✅ Extend Payment for display purposes
 interface PaymentDisplay extends Payment {
   patientName?: string;
   consultationDate?: string;
   appointmentDate?: string;
 }
 
+interface SelectOption {
+  value: number;
+  label: string;
+}
+
 export default function Payments() {
-  const { user } = useAuth(); // assume this returns username string
+  const { user } = useAuth();
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
   const [payments, setPayments] = useState<PaymentDisplay[]>([]);
@@ -71,27 +77,28 @@ export default function Payments() {
   });
   const [error, setError] = useState("");
 
-  // Fetch dropdowns and users
+  // Fetch dropdowns
   const fetchDropdowns = async () => {
     try {
-      const [patientsRes, consultationsRes, appointmentsRes, usersRes] =
-        await Promise.all([
-          api.get<Patient[]>("/Patients"),
-          api.get<Consultation[]>("/Consultations"),
-          api.get<Appointment[]>("/Appointments"),
-          api.get<User[]>("/Users"),
-        ]);
+      const [patientsRes, consultationsRes, appointmentsRes, usersRes] = await Promise.all([
+        api.get<Patient[]>("/Patients"),
+        api.get<Consultation[]>("/Consultations"),
+        api.get<Appointment[]>("/Appointments"),
+        api.get<User[]>("/Users"),
+      ]);
 
-      setPatients(
-        patientsRes.data.map((p) => ({ ...p, fullName: `${p.firstName} ${p.lastName}` }))
-      );
+      const mappedPatients = patientsRes.data.map(p => ({
+        ...p,
+        fullName: `${p.firstName} ${p.lastName}`,
+      }));
+
+      setPatients(mappedPatients);
       setConsultations(consultationsRes.data);
       setAppointments(appointmentsRes.data);
       setUsers(usersRes.data);
 
-      // Map current username to userId
       if (typeof user === "string") {
-        const found = usersRes.data.find((u) => u.username === user);
+        const found = usersRes.data.find(u => u.username === user);
         if (found) setCurrentUserId(found.userId);
       }
     } catch (err) {
@@ -100,21 +107,20 @@ export default function Payments() {
     }
   };
 
-  // Fetch payments and map names/dates
   const fetchPayments = async () => {
     try {
       const res = await api.get<Payment[]>("/Payments");
 
-      const mapped: PaymentDisplay[] = res.data.map((p) => {
-        const patient = patients.find((pt) => pt.patientId === p.patientId);
-        const consultation = consultations.find((c) => c.consultationId === p.consultationId);
-        const appointment = appointments.find((a) => a.appointmentId === p.appointmentId);
+      const mapped: PaymentDisplay[] = res.data.map(p => {
+        const patient = patients.find(pt => pt.patientId === p.patientId);
+        const consultation = consultations.find(c => c.consultationId === p.consultationId);
+        const appointment = appointments.find(a => a.appointmentId === p.appointmentId);
 
         return {
           ...p,
-          patientName: patient ? patient.fullName : "Unknown",
-          consultationDate: consultation ? consultation.consultationDate : "",
-          appointmentDate: appointment ? appointment.appointmentDateTime : "",
+          patientName: patient?.fullName ?? "Unknown",
+          consultationDate: consultation?.consultationDate ?? "",
+          appointmentDate: appointment?.appointmentDateTime ?? "",
         };
       });
 
@@ -125,42 +131,40 @@ export default function Payments() {
     }
   };
 
+  useEffect(() => { fetchDropdowns(); }, []);
   useEffect(() => {
-    fetchDropdowns();
-  }, []);
-
-  // Refresh payments after dropdowns loaded
-  useEffect(() => {
-    if (patients.length && consultations.length) {
-      fetchPayments();
-    }
+    if (patients.length && consultations.length) fetchPayments();
   }, [patients, consultations, appointments]);
 
-  const resetForm = () =>
-    setFormData({
-      patientId: "",
-      consultationId: "",
-      appointmentId: "",
-      amount: "",
-      paymentMethod: "Cash",
-      paymentReason: "",
-    });
+  const resetForm = () => setFormData({
+    patientId: "",
+    consultationId: "",
+    appointmentId: "",
+    amount: "",
+    paymentMethod: "Cash",
+    paymentReason: "",
+  });
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => {
+  // Generic input/select change handler for text/number fields
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // React-Select handlers
+  const handlePatientChange = (selected: SingleValue<SelectOption>) =>
+    setFormData(prev => ({ ...prev, patientId: selected ? String(selected.value) : "" }));
+
+  const handleConsultationChange = (selected: SingleValue<SelectOption>) =>
+    setFormData(prev => ({ ...prev, consultationId: selected ? String(selected.value) : "" }));
+
+  const handleAppointmentChange = (selected: SingleValue<SelectOption>) =>
+    setFormData(prev => ({ ...prev, appointmentId: selected ? String(selected.value) : "" }));
+
   const handleSave = async () => {
-    if (!currentUserId) {
-      setError("You must be logged in to record a payment");
-      return;
-    }
+    if (!currentUserId) return setError("You must be logged in to record a payment");
     if (!formData.patientId || !formData.consultationId || !formData.amount || !formData.paymentReason) {
-      setError("Patient, consultation, amount, and reason are required");
-      return;
+      return setError("Patient, consultation, amount, and reason are required");
     }
 
     const payload = {
@@ -201,25 +205,25 @@ export default function Payments() {
     setShowModal(true);
   };
 
-  const getUsername = (userId: number) => {
-    const found = users.find((u) => u.userId === userId);
-    return found ? found.username : "Unknown";
-  };
+  const getUsername = (userId: number) => users.find(u => u.userId === userId)?.username ?? "Unknown";
+
+  // Options for react-select
+  const patientOptions: SelectOption[] = patients.map(p => ({ value: p.patientId, label: p.fullName! }));
+  const consultationOptions: SelectOption[] = consultations.map(c => ({
+    value: c.consultationId,
+    label: `ID:${c.consultationId} - ${new Date(c.consultationDate).toLocaleDateString()}`,
+  }));
+  const appointmentOptions: SelectOption[] = appointments.map(a => ({
+    value: a.appointmentId,
+    label: `ID:${a.appointmentId} - ${new Date(a.appointmentDateTime).toLocaleString()}`,
+  }));
 
   return (
     <div className="container mt-4">
       <h2>Payments</h2>
       {error && <Alert variant="danger">{error}</Alert>}
 
-      <Button
-        variant="primary"
-        className="mb-3"
-        onClick={() => {
-          resetForm();
-          setEditingPayment(null);
-          setShowModal(true);
-        }}
-      >
+      <Button variant="primary" className="mb-3" onClick={() => { resetForm(); setEditingPayment(null); setShowModal(true); }}>
         + Add Payment
       </Button>
 
@@ -242,7 +246,7 @@ export default function Payments() {
             </tr>
           </thead>
           <tbody>
-            {payments.map((p) => (
+            {payments.map(p => (
               <tr key={p.paymentId}>
                 <td>{p.paymentId}</td>
                 <td>{p.patientName}</td>
@@ -253,11 +257,7 @@ export default function Payments() {
                 <td>{p.paymentReason}</td>
                 <td>{new Date(p.paymentDate).toLocaleString()}</td>
                 <td>{getUsername(p.recordedByUserId)}</td>
-                <td>
-                  <Button size="sm" variant="warning" onClick={() => handleEdit(p)}>
-                    Edit
-                  </Button>
-                </td>
+                <td><Button size="sm" variant="warning" onClick={() => handleEdit(p)}>Edit</Button></td>
               </tr>
             ))}
           </tbody>
@@ -272,66 +272,45 @@ export default function Payments() {
           <Form>
             <Form.Group className="mb-3">
               <Form.Label>Patient</Form.Label>
-              <Form.Select name="patientId" value={formData.patientId} onChange={handleChange}>
-                <option value="">Select patient</option>
-                {patients.map((p) => (
-                  <option key={p.patientId} value={p.patientId}>
-                    {p.fullName}
-                  </option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Consultation</Form.Label>
-              <Form.Select
-                name="consultationId"
-                value={formData.consultationId}
-                onChange={handleChange}
-              >
-                <option value="">Select consultation</option>
-                {consultations.map((c) => (
-                  <option key={c.consultationId} value={c.consultationId}>
-                    {`ID:${c.consultationId} - ${new Date(c.consultationDate).toLocaleDateString()}`}
-                  </option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Appointment (optional)</Form.Label>
-              <Form.Select
-                name="appointmentId"
-                value={formData.appointmentId}
-                onChange={handleChange}
-              >
-                <option value="">None</option>
-                {appointments.map((a) => (
-                  <option key={a.appointmentId} value={a.appointmentId}>
-                    {`ID:${a.appointmentId} - ${new Date(a.appointmentDateTime).toLocaleString()}`}
-                  </option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Amount</Form.Label>
-              <Form.Control
-                type="number"
-                step="0.01"
-                name="amount"
-                value={formData.amount}
-                onChange={handleChange}
+              <Select
+                options={patientOptions}
+                value={patientOptions.find(opt => opt.value === Number(formData.patientId)) || null}
+                onChange={handlePatientChange}
+                isClearable
+                placeholder="Select Patient"
               />
             </Form.Group>
 
             <Form.Group className="mb-3">
+              <Form.Label>Consultation</Form.Label>
+              <Select
+                options={consultationOptions}
+                value={consultationOptions.find(opt => opt.value === Number(formData.consultationId)) || null}
+                onChange={handleConsultationChange}
+                isClearable
+                placeholder="Select Consultation"
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Appointment (optional)</Form.Label>
+              <Select
+                options={appointmentOptions}
+                value={appointmentOptions.find(opt => opt.value === Number(formData.appointmentId)) || null}
+                onChange={handleAppointmentChange}
+                isClearable
+                placeholder="None"
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Amount</Form.Label>
+              <Form.Control type="number" step="0.01" name="amount" value={formData.amount} onChange={handleChange} />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
               <Form.Label>Payment Method</Form.Label>
-              <Form.Select
-                name="paymentMethod"
-                value={formData.paymentMethod}
-                onChange={handleChange}
-              >
+              <Form.Select name="paymentMethod" value={formData.paymentMethod} onChange={handleChange}>
                 <option value="Cash">Cash</option>
                 <option value="Card">Card</option>
                 <option value="Insurance">Insurance</option>
@@ -341,22 +320,13 @@ export default function Payments() {
 
             <Form.Group className="mb-3">
               <Form.Label>Reason</Form.Label>
-              <Form.Control
-                type="text"
-                name="paymentReason"
-                value={formData.paymentReason}
-                onChange={handleChange}
-              />
+              <Form.Control type="text" name="paymentReason" value={formData.paymentReason} onChange={handleChange} />
             </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
-            Close
-          </Button>
-          <Button variant="primary" onClick={handleSave}>
-            Save
-          </Button>
+          <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
+          <Button variant="primary" onClick={handleSave}>Save</Button>
         </Modal.Footer>
       </Modal>
     </div>

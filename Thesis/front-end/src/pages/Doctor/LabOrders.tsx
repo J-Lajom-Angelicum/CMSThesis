@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { Table, Button, Modal, Form, Alert } from "react-bootstrap";
+import Select from "react-select";
+import type { SingleValue } from "react-select";
 import api from "../../api/axios";
 import { useAuth } from "../../context/AuthContext";
 
@@ -10,15 +12,16 @@ interface LabOrder {
   orderedByUserId: number;
   orderDate: string;
   notes?: string;
-  patientName?: string; // mapped from Patients
-  consultationDate?: string; // mapped from Consultations
-  orderedByUsername?: string; // mapped from Users
+  patientName?: string;
+  consultationDate?: string;
+  orderedByUsername?: string;
 }
 
 interface Patient {
   patientId: number;
   firstName: string;
   lastName: string;
+  fullName?: string;
 }
 
 interface Consultation {
@@ -32,7 +35,7 @@ interface User {
 }
 
 export default function LabOrders() {
-  const { user } = useAuth(); // assume this returns username string
+  const { user } = useAuth();
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
   const [labOrders, setLabOrders] = useState<LabOrder[]>([]);
@@ -64,7 +67,6 @@ export default function LabOrders() {
       setConsultations(consultationsRes.data);
       setUsers(usersRes.data);
 
-      // Map current username to userId
       if (typeof user === "string") {
         const found = usersRes.data.find((u) => u.username === user);
         if (found) setCurrentUserId(found.userId);
@@ -75,7 +77,7 @@ export default function LabOrders() {
     }
   };
 
-  // Fetch LabOrders and map names/dates
+  // Fetch lab orders and map names/dates
   const fetchLabOrders = async () => {
     try {
       const res = await api.get<LabOrder[]>("/LabOrders");
@@ -87,7 +89,7 @@ export default function LabOrders() {
 
         return {
           ...o,
-          patientName: patient ? `${patient.firstName} ${patient.lastName}` : "Unknown",
+          patientName: patient ? patient.fullName : "Unknown",
           consultationDate: consultation ? consultation.consultationDate : "",
           orderedByUsername: user ? user.username : "Unknown",
         };
@@ -100,11 +102,7 @@ export default function LabOrders() {
     }
   };
 
-  useEffect(() => {
-    fetchDropdowns();
-  }, []);
-
-  // Refresh lab orders after dropdowns loaded
+  useEffect(() => { fetchDropdowns(); }, []);
   useEffect(() => {
     if (patients.length && consultations.length && users.length) {
       fetchLabOrders();
@@ -112,15 +110,26 @@ export default function LabOrders() {
   }, [patients, consultations, users]);
 
   const resetForm = () =>
-    setFormData({
-      patientId: "",
-      consultationId: "",
-      notes: "",
-    });
+    setFormData({ patientId: "", consultationId: "", notes: "" });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // React Select handlers
+  const handlePatientChange = (selected: SingleValue<{ value: number; label: string }>) => {
+    setFormData((prev) => ({
+      ...prev,
+      patientId: selected ? String(selected.value) : "",
+    }));
+  };
+
+  const handleConsultationChange = (selected: SingleValue<{ value: number; label: string }>) => {
+    setFormData((prev) => ({
+      ...prev,
+      consultationId: selected ? String(selected.value) : "",
+    }));
   };
 
   const handleSave = async () => {
@@ -178,6 +187,13 @@ export default function LabOrders() {
     }
   };
 
+  // Options for React Select
+  const patientOptions = patients.map((p) => ({ value: p.patientId, label: p.fullName! }));
+  const consultationOptions = consultations.map((c) => ({
+    value: c.consultationId,
+    label: `ID:${c.consultationId} - ${new Date(c.consultationDate).toLocaleDateString()}`,
+  }));
+
   return (
     <div className="container mt-4">
       <h2>Lab Orders</h2>
@@ -217,35 +233,37 @@ export default function LabOrders() {
         </tbody>
       </Table>
 
-      {/* Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>{editingOrder ? "Edit Lab Order" : "Add Lab Order"}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form>
+            {/* Patient */}
             <Form.Group className="mb-3">
               <Form.Label>Patient</Form.Label>
-              <Form.Select name="patientId" value={formData.patientId} onChange={handleChange}>
-                <option value="">Select Patient</option>
-                {patients.map((p) => (
-                  <option key={p.patientId} value={p.patientId}>{p.firstName} {p.lastName}</option>
-                ))}
-              </Form.Select>
+              <Select
+                options={patientOptions}
+                value={patientOptions.find((opt) => opt.value === Number(formData.patientId)) || null}
+                onChange={handlePatientChange}
+                isClearable
+                placeholder="Select Patient"
+              />
             </Form.Group>
 
+            {/* Consultation */}
             <Form.Group className="mb-3">
               <Form.Label>Consultation</Form.Label>
-              <Form.Select name="consultationId" value={formData.consultationId} onChange={handleChange}>
-                <option value="">Select Consultation</option>
-                {consultations.map((c) => (
-                  <option key={c.consultationId} value={c.consultationId}>
-                    {`ID:${c.consultationId} - ${new Date(c.consultationDate).toLocaleDateString()}`}
-                  </option>
-                ))}
-              </Form.Select>
+              <Select
+                options={consultationOptions}
+                value={consultationOptions.find((opt) => opt.value === Number(formData.consultationId)) || null}
+                onChange={handleConsultationChange}
+                isClearable
+                placeholder="Select Consultation"
+              />
             </Form.Group>
 
+            {/* Notes */}
             <Form.Group className="mb-3">
               <Form.Label>Notes</Form.Label>
               <Form.Control as="textarea" rows={2} name="notes" value={formData.notes} onChange={handleChange} />
