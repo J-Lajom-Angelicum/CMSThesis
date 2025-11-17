@@ -113,10 +113,14 @@ export default function Consultations() {
 
   const handleSave = async () => {
     if (isStaff) return alert("Staff cannot modify consultations.");
-    if (!formData.patientId || !formData.doctorId || !formData.consultationDate) {
-      alert("Please fill in all required fields.");
-      return;
-    }
+    if (
+  !Number(formData.patientId) ||
+  !Number(formData.doctorId) ||
+  !formData.consultationDate
+) {
+  alert("Please fill in all required fields.");
+  return;
+}
 
     const dto = {
       patientId: Number(formData.patientId),

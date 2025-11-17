@@ -90,7 +90,7 @@ const handleDelete = async (id: number) => {
               <td>
                 {canCreateOrEdit && (
                   <Link
-                    to={`/patients/${p.patientId}`}
+                    to={`/patients/${p.patientId}/edit`}
                     className="btn btn-sm btn-warning me-2"
                   >
                     Edit

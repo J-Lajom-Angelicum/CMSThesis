@@ -31,7 +31,7 @@ export default function Sidebar() {
             <Nav.Link as={Link} to="/patients">Patients</Nav.Link>
             <Nav.Link as={Link} to="/appointments">Appointments</Nav.Link>
             <Nav.Link as={Link} to="/consultations">Consultations</Nav.Link>
-            <Nav.Link as={Link} to="/queue-entries">Queue Entries</Nav.Link>
+            {/* <Nav.Link as={Link} to="/queue-entries">Queue Entries</Nav.Link> */}
             <Nav.Link as={Link} to="/payments">Payments</Nav.Link>
             <Nav.Link as={Link} to="/lab-orders">Lab Orders</Nav.Link>
             <Nav.Link as={Link} to="/lab-results">Lab Results</Nav.Link>
