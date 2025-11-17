@@ -1,6 +1,11 @@
-import React, { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Form, Button, Table, Card, Spinner, Alert, Modal } from "react-bootstrap";
 import api from "../../api/axios";
+
+interface Item {
+  itemId: number;
+  itemName: string;
+}
 
 interface Batch {
   batchId: number;
@@ -23,9 +28,11 @@ interface ConsultationInventory {
   quantityUsed: number;
   notes: string;
   consultationDate?: string;
+  itemName?: string; // Added for display
 }
 
 export default function InventoryUsage() {
+  const [items, setItems] = useState<Item[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [usageList, setUsageList] = useState<ConsultationInventory[]>([]);
@@ -48,42 +55,46 @@ export default function InventoryUsage() {
     notes: "",
   });
 
-  // Unified fetch
+  // Fetch all relevant data
   const fetchData = async () => {
     try {
-      const [batchesRes, consultationsRes, usageRes] = await Promise.all([
+      const [itemsRes, batchesRes, consultationsRes, usageRes] = await Promise.all([
+        api.get("/InventoryItems"),
         api.get("/InventoryBatches"),
         api.get("/Consultations"),
         api.get("/ConsultationInventories"),
       ]);
 
-      const batchesData: Batch[] = batchesRes.data.map((b: any) => ({
-        batchId: b.batchId ?? b.BatchId,
-        itemId: b.itemId ?? b.ItemId,
-        batchNumber: b.batchNumber ?? b.BatchNumber,
-        quantityInStock: b.quantityInStock ?? b.QuantityInStock,
-        expirationDate: b.expirationDate ?? b.ExpirationDate,
-        dateReceived: b.dateReceived ?? b.DateReceived,
-      }));
+      const itemsData: Item[] = itemsRes.data;
+      const batchesData: Batch[] = batchesRes.data;
+      const consultationsData: Consultation[] = consultationsRes.data;
 
-      const consultationsData: Consultation[] = consultationsRes.data.map((c: any) => ({
-        consultationId: c.consultationId ?? c.ConsultationId,
-        consultationDate: c.consultationDate ?? c.ConsultationDate,
-      }));
-
+      // Map consultationId → date
       const consultationMap = new Map<number, string>(
         consultationsData.map((c) => [c.consultationId, c.consultationDate])
       );
 
-      const usageData: ConsultationInventory[] = usageRes.data.map((u: any) => ({
-        consultationInventoryId: u.consultationInventoryId ?? u.ConsultationInventoryId,
-        consultationId: u.consultationId ?? u.ConsultationId,
-        batchId: u.batchId ?? u.BatchId,
-        quantityUsed: u.quantityUsed ?? u.QuantityUsed,
-        notes: u.notes ?? u.Notes,
-        consultationDate: consultationMap.get(u.consultationId ?? u.ConsultationId),
-      }));
+      // Map batchId → itemId → itemName
+      const itemMap = new Map<number, string>(itemsData.map((i) => [i.itemId, i.itemName]));
+      const batchMap = new Map<number, Batch>(batchesData.map((b) => [b.batchId, b]));
 
+      const usageData: ConsultationInventory[] = usageRes.data.map((u: any) => {
+        const batchId = u.batchId ?? u.BatchId;
+        const batch = batchMap.get(batchId);
+        const itemName = batch ? itemMap.get(batch.itemId) : "Unknown Item";
+
+        return {
+          consultationInventoryId: u.consultationInventoryId ?? u.ConsultationInventoryId,
+          consultationId: u.consultationId ?? u.ConsultationId,
+          batchId,
+          quantityUsed: u.quantityUsed ?? u.QuantityUsed,
+          notes: u.notes ?? u.Notes,
+          consultationDate: consultationMap.get(u.consultationId ?? u.ConsultationId),
+          itemName,
+        };
+      });
+
+      setItems(itemsData);
       setBatches(batchesData);
       setConsultations(consultationsData);
       setUsageList(usageData);
@@ -99,22 +110,15 @@ export default function InventoryUsage() {
     fetchData();
   }, []);
 
-  // --- Create new usage
   const handleUseItem = async (e: React.FormEvent) => {
     e.preventDefault();
     const { consultationId, batchId, quantityUsed, notes } = usage;
 
-    if (!consultationId || !batchId || !quantityUsed) {
-      alert("Please fill all required fields.");
-      return;
-    }
+    if (!consultationId || !batchId || !quantityUsed) return alert("Please fill all required fields.");
 
     const qty = parseInt(quantityUsed);
     const batch = batches.find((b) => b.batchId === parseInt(batchId));
-    if (!batch || batch.quantityInStock < qty) {
-      alert("Not enough stock or batch not found!");
-      return;
-    }
+    if (!batch || batch.quantityInStock < qty) return alert("Not enough stock or batch not found!");
 
     try {
       await api.post("/ConsultationInventories", {
@@ -123,9 +127,8 @@ export default function InventoryUsage() {
         quantityUsed: qty,
         notes,
       });
-      await fetchData();
       setUsage({ consultationId: "", batchId: "", quantityUsed: "", notes: "" });
-      alert("Usage recorded successfully!");
+      await fetchData();
     } catch (err) {
       console.error(err);
       alert("Failed to record usage.");
@@ -158,10 +161,7 @@ export default function InventoryUsage() {
   const handleSave = async () => {
     const qty = parseInt(modalData.quantityUsed);
     const batch = batches.find((b) => b.batchId === parseInt(modalData.batchId));
-    if (!batch || batch.quantityInStock < qty) {
-      alert("Not enough stock or batch not found!");
-      return;
-    }
+    if (!batch || batch.quantityInStock < qty) return alert("Not enough stock or batch not found!");
 
     try {
       if (editingId) {
@@ -172,9 +172,9 @@ export default function InventoryUsage() {
           notes: modalData.notes,
         });
       }
-      await fetchData();
       setShowModal(false);
       setEditingId(null);
+      await fetchData();
     } catch (err) {
       console.error(err);
       alert("Failed to update record.");
@@ -187,12 +187,9 @@ export default function InventoryUsage() {
       {error && <Alert variant="danger">{error}</Alert>}
 
       {loading ? (
-        <div className="text-center mt-4">
-          <Spinner animation="border" variant="primary" />
-        </div>
+        <div className="text-center mt-4"><Spinner animation="border" variant="primary" /></div>
       ) : (
         <>
-          {/* --- Create usage form */}
           <Card className="mb-4">
             <Card.Body>
               <h5>Record Item Usage</h5>
@@ -221,7 +218,7 @@ export default function InventoryUsage() {
                     <option value="">Select Batch</option>
                     {batches.map((b) => (
                       <option key={b.batchId} value={b.batchId}>
-                        {`ID:${b.batchId} - ${new Date(b.expirationDate).toLocaleDateString()}`}
+                        {`ID:${b.batchId} - ${items.find((i) => i.itemId === b.itemId)?.itemName || "Item"} - Exp:${new Date(b.expirationDate).toLocaleDateString()}`}
                       </option>
                     ))}
                   </Form.Select>
@@ -252,14 +249,14 @@ export default function InventoryUsage() {
             </Card.Body>
           </Card>
 
-          {/* --- Usage table */}
           <h5>Recorded Usages</h5>
           <Table striped bordered hover>
             <thead>
               <tr>
                 <th>ID</th>
                 <th>Consultation</th>
-                <th>Batch ID</th>
+                <th>Item</th>
+                <th>Batch</th>
                 <th>Quantity Used</th>
                 <th>Notes</th>
                 <th>Actions</th>
@@ -270,6 +267,7 @@ export default function InventoryUsage() {
                 <tr key={u.consultationInventoryId}>
                   <td>{u.consultationInventoryId}</td>
                   <td>{u.consultationId} — {u.consultationDate ? new Date(u.consultationDate).toLocaleDateString() : "N/A"}</td>
+                  <td>{u.itemName}</td>
                   <td>{u.batchId}</td>
                   <td>{u.quantityUsed}</td>
                   <td>{u.notes || "—"}</td>
@@ -280,13 +278,12 @@ export default function InventoryUsage() {
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={6} className="text-center text-muted">No usage records yet.</td>
+                  <td colSpan={7} className="text-center text-muted">No usage records yet.</td>
                 </tr>
               )}
             </tbody>
           </Table>
 
-          {/* --- Edit modal */}
           <Modal show={showModal} onHide={() => setShowModal(false)} centered>
             <Modal.Header closeButton>
               <Modal.Title>Edit Usage</Modal.Title>
@@ -315,7 +312,7 @@ export default function InventoryUsage() {
                   >
                     {batches.map((b) => (
                       <option key={b.batchId} value={b.batchId}>
-                        {`ID:${b.batchId} - ${new Date(b.expirationDate).toLocaleDateString()}`}
+                        {`ID:${b.batchId} - ${items.find((i) => i.itemId === b.itemId)?.itemName || "Item"} - Exp:${new Date(b.expirationDate).toLocaleDateString()}`}
                       </option>
                     ))}
                   </Form.Select>

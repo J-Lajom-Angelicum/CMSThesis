@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Table, Button, Card, Row, Col, Alert } from "react-bootstrap";
+import { Table, Button, Card, Row, Col, Alert, Spinner } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
+import api from "../../api/axios"; // import your API instance
 
 type ExpiringItem = {
   itemName: string;
@@ -23,11 +24,13 @@ export default function InventorySummary() {
   const [expiringSoon, setExpiringSoon] = useState<ExpiringItem[]>([]);
   const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
   const [usageSummary, setUsageSummary] = useState<UsageSummary[]>([]);
+  const [loadingUsage, setLoadingUsage] = useState(true);
+  const [error, setError] = useState("");
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Mock data (replace with your API calls later)
+    // 🔹 Fetch Expiring Soon and Low Stock - could be API later
     setExpiringSoon([
       { itemName: "Amoxicillin 500mg", batchNo: "B-102", expiryDate: "2025-11-12" },
       { itemName: "Vitamin C 1000mg", batchNo: "B-087", expiryDate: "2025-12-01" },
@@ -38,10 +41,45 @@ export default function InventorySummary() {
       { itemName: "Cotton Balls", stockLeft: 12 },
     ]);
 
-    setUsageSummary([
-      { itemName: "Syringe 5ml", totalUsed: 230, lastUsed: "2025-10-04" },
-      { itemName: "Bandage Roll", totalUsed: 145, lastUsed: "2025-10-03" },
-    ]);
+    // 🔹 Fetch real usage summary from ConsultationInventories
+    const fetchUsageSummary = async () => {
+      try {
+        setLoadingUsage(true);
+        const res = await api.get("/ConsultationInventories"); // adjust endpoint
+        const data = res.data as any[];
+
+        // Aggregate usage per item
+        const usageMap = new Map<string, { totalUsed: number; lastUsed: string }>();
+
+        data.forEach((u) => {
+          const name = u.itemName || `Item #${u.itemId}`; // you might need to join with Items API
+          const qty = parseInt(u.quantityUsed);
+          const date = u.consultationDate || u.dateUsed || "";
+
+          if (!usageMap.has(name)) {
+            usageMap.set(name, { totalUsed: qty, lastUsed: date });
+          } else {
+            const prev = usageMap.get(name)!;
+            usageMap.set(name, {
+              totalUsed: prev.totalUsed + qty,
+              lastUsed: date > prev.lastUsed ? date : prev.lastUsed,
+            });
+          }
+        });
+
+        const summary: UsageSummary[] = [];
+        usageMap.forEach((v, k) => summary.push({ itemName: k, ...v }));
+
+        setUsageSummary(summary);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load usage data.");
+      } finally {
+        setLoadingUsage(false);
+      }
+    };
+
+    fetchUsageSummary();
   }, []);
 
   return (
@@ -54,11 +92,7 @@ export default function InventorySummary() {
           <Card className="shadow-sm border-0">
             <Card.Header className="d-flex justify-content-between align-items-center bg-teal text-white">
               <strong>🧪 Expiring Soon</strong>
-              <Button
-                variant="light"
-                size="sm"
-                onClick={() => navigate("/inventory-batches")}
-              >
+              <Button variant="light" size="sm" onClick={() => navigate("/inventory-batches")}>
                 View Batches
               </Button>
             </Card.Header>
@@ -94,11 +128,7 @@ export default function InventorySummary() {
           <Card className="shadow-sm border-0">
             <Card.Header className="d-flex justify-content-between align-items-center bg-teal text-white">
               <strong>📉 Low Stock Items</strong>
-              <Button
-                variant="light"
-                size="sm"
-                onClick={() => navigate("/inventory-items")}
-              >
+              <Button variant="light" size="sm" onClick={() => navigate("/inventory-items")}>
                 View Items
               </Button>
             </Card.Header>
@@ -132,16 +162,14 @@ export default function InventorySummary() {
           <Card className="shadow-sm border-0">
             <Card.Header className="d-flex justify-content-between align-items-center bg-teal text-white">
               <strong>📦 Usage Summary</strong>
-              <Button
-                variant="light"
-                size="sm"
-                onClick={() => navigate("/inventory-usage")}
-              >
+              <Button variant="light" size="sm" onClick={() => navigate("/inventory-usage")}>
                 View Usage
               </Button>
             </Card.Header>
             <Card.Body>
-              {usageSummary.length === 0 ? (
+              {loadingUsage ? (
+                <div className="text-center">Loading...</div>
+              ) : usageSummary.length === 0 ? (
                 <Alert variant="info" className="mb-0">No recent usage data available.</Alert>
               ) : (
                 <Table bordered hover responsive size="sm">
