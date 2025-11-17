@@ -1,6 +1,7 @@
 // src/pages/Staff/Appointments.tsx
 import { useEffect, useState } from "react";
 import { Table, Button, Modal, Form, Alert, Spinner } from "react-bootstrap";
+import Select from "react-select";
 import api from "../../api/axios";
 
 interface Patient {
@@ -44,7 +45,6 @@ export default function Appointments() {
     appointmentStatus: "Booked" as Appointment["appointmentStatus"],
   });
 
-  // Load all data
   const loadData = async () => {
     try {
       setLoading(true);
@@ -53,7 +53,6 @@ export default function Appointments() {
         api.get("/doctors"),
         api.get("/appointments"),
       ]);
-
       setPatients(patientsRes.data);
       setDoctors(doctorsRes.data);
       setAppointments(appointmentsRes.data);
@@ -72,6 +71,13 @@ export default function Appointments() {
   const handleChange = (e: React.ChangeEvent<any>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePatientChange = (selected: any) => {
+    setFormData(prev => ({
+      ...prev,
+      patientId: selected ? String(selected.value) : "",
+    }));
   };
 
   const resetForm = () => {
@@ -102,10 +108,8 @@ export default function Appointments() {
 
     try {
       if (editingId) {
-        // Update existing
         await api.put(`/appointments/${editingId}`, dto);
       } else {
-        // Create new
         await api.post("/appointments", dto);
       }
       await loadData();
@@ -148,6 +152,11 @@ export default function Appointments() {
       alert("Failed to update status.");
     }
   };
+
+  const patientOptions = patients.map(p => ({
+    value: p.patientId,
+    label: `${p.firstName} ${p.lastName}`,
+  }));
 
   return (
     <div className="container mt-4">
@@ -205,12 +214,29 @@ export default function Appointments() {
           <Form>
             <Form.Group className="mb-3">
               <Form.Label>Patient</Form.Label>
-              <Form.Select name="patientId" value={formData.patientId} onChange={handleChange}>
-                <option value="">Select Patient</option>
-                {patients.map(p => (
-                  <option key={p.patientId} value={p.patientId}>{p.firstName} {p.lastName}</option>
-                ))}
-              </Form.Select>
+              <Select
+                options={patientOptions}
+                value={patientOptions.find(option => option.value === Number(formData.patientId)) || null}
+                onChange={handlePatientChange}
+                isClearable
+                placeholder="Select Patient"
+                classNamePrefix="react-select"
+                styles={{
+                  control: (provided) => ({
+                    ...provided,
+                    backgroundColor: 'var(--bg-color)',
+                    borderColor: 'var(--accent-color)',
+                    color: 'var(--text-color)',
+                  }),
+                  singleValue: (provided) => ({ ...provided, color: 'var(--text-color)' }),
+                  menu: (provided) => ({ ...provided, backgroundColor: 'var(--card-bg)' }),
+                  option: (provided, state) => ({
+                    ...provided,
+                    backgroundColor: state.isFocused ? 'var(--sidebar-link-hover)' : 'var(--card-bg)',
+                    color: 'var(--text-color)',
+                  }),
+                }}
+              />
             </Form.Group>
 
             <Form.Group className="mb-3">

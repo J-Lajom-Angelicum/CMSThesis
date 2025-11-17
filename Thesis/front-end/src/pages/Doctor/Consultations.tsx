@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { Table, Button, Modal, Form, Alert, Spinner } from "react-bootstrap";
 import { useAuth } from "../../context/AuthContext";
+import Select from "react-select";
 import api from "../../api/axios";
 
 interface Patient {
@@ -24,7 +25,7 @@ interface Consultation {
   consultationId: number;
   patientId: number;
   doctorId: number;
-  appointmentId?: number | null; // ✅ Allow null here
+  appointmentId?: number | null;
   consultationDate: string;
   notes: string;
   diagnosis: string;
@@ -97,6 +98,20 @@ export default function Consultations() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handlePatientChange = (selected: any) => {
+    setFormData(prev => ({
+      ...prev,
+      patientId: selected ? String(selected.value) : "",
+    }));
+  };
+
+  const handleAppointmentChange = (selected: any) => {
+    setFormData(prev => ({
+      ...prev,
+      appointmentId: selected ? String(selected.value) : "",
+    }));
+  };
+
   const resetForm = () => {
     setFormData({
       patientId: "",
@@ -113,14 +128,10 @@ export default function Consultations() {
 
   const handleSave = async () => {
     if (isStaff) return alert("Staff cannot modify consultations.");
-    if (
-  !Number(formData.patientId) ||
-  !Number(formData.doctorId) ||
-  !formData.consultationDate
-) {
-  alert("Please fill in all required fields.");
-  return;
-}
+    if (!Number(formData.patientId) || !Number(formData.doctorId) || !formData.consultationDate) {
+      alert("Please fill in all required fields.");
+      return;
+    }
 
     const dto = {
       patientId: Number(formData.patientId),
@@ -142,7 +153,6 @@ export default function Consultations() {
         savedConsultation = res.data;
       }
 
-      // 🔗 Update linked QueueEntry if appointmentId exists
       if (dto.appointmentId) {
         const linkedQueue = queue.find(q => q.appointmentId === dto.appointmentId);
         if (linkedQueue) {
@@ -151,8 +161,6 @@ export default function Consultations() {
             DoctorId: linkedQueue.doctorId,
             ConsultationId: savedConsultation.consultationId,
           });
-
-          // Update UI immediately
           setQueue(prev =>
             prev.map(q =>
               q.queueEntryId === linkedQueue.queueEntryId
@@ -204,6 +212,12 @@ export default function Consultations() {
     }
     return consultations;
   }, [consultations, isDoctor]);
+
+  const patientOptions = patients.map(p => ({ value: p.patientId, label: `${p.firstName} ${p.lastName}` }));
+  const appointmentOptions = appointments.map(a => ({
+    value: a.appointmentId,
+    label: `${a.appointmentId} — ${new Date(a.appointmentDateTime).toLocaleString()}`,
+  }));
 
   return (
     <div className="container mt-4">
@@ -261,23 +275,26 @@ export default function Consultations() {
         </Table>
       )}
 
-      {/* MODAL */}
       <Modal show={showModal} onHide={resetForm}>
         <Modal.Header closeButton>
           <Modal.Title>{editingId ? "Edit Consultation" : "New Consultation"}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form>
+            {/* Patient Select */}
             <Form.Group className="mb-3">
               <Form.Label>Patient</Form.Label>
-              <Form.Select name="patientId" value={formData.patientId} onChange={handleChange} disabled={isStaff}>
-                <option value="">Select Patient</option>
-                {patients.map(p => (
-                  <option key={p.patientId} value={p.patientId}>{p.firstName} {p.lastName}</option>
-                ))}
-              </Form.Select>
+              <Select
+                options={patientOptions}
+                value={patientOptions.find(opt => opt.value === Number(formData.patientId)) || null}
+                onChange={handlePatientChange}
+                isClearable
+                placeholder="Select Patient"
+                isDisabled={isStaff}
+              />
             </Form.Group>
 
+            {/* Doctor Select (keep simple for now) */}
             <Form.Group className="mb-3">
               <Form.Label>Doctor</Form.Label>
               <Form.Select name="doctorId" value={formData.doctorId} onChange={handleChange} disabled={isStaff}>
@@ -288,16 +305,16 @@ export default function Consultations() {
               </Form.Select>
             </Form.Group>
 
+            {/* Appointment Select */}
             <Form.Group className="mb-3">
               <Form.Label>Appointment (optional)</Form.Label>
-              <Form.Select name="appointmentId" value={formData.appointmentId} onChange={handleChange}>
-                <option value="">None</option>
-                {appointments.map(a => (
-                  <option key={a.appointmentId} value={a.appointmentId}>
-                    {a.appointmentId} — {new Date(a.appointmentDateTime).toLocaleString()}
-                  </option>
-                ))}
-              </Form.Select>
+              <Select
+                options={appointmentOptions}
+                value={appointmentOptions.find(opt => opt.value === Number(formData.appointmentId)) || null}
+                onChange={handleAppointmentChange}
+                isClearable
+                placeholder="None"
+              />
             </Form.Group>
 
             <Form.Group className="mb-3">
