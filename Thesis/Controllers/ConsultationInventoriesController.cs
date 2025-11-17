@@ -48,6 +48,26 @@ namespace Thesis.Controllers
             _context.ConsultationInventories.Add(ConsultationInventory);
             await _context.SaveChangesAsync();
 
+            // --- Create linked InventoryTransaction ---
+            var transaction = new InventoryTransaction
+            {
+                BatchId = ConsultationInventory.BatchId,
+                QuantityChange = -ConsultationInventory.QuantityUsed, // negative for usage
+                TransactionType = "Usage",
+                ReferenceId = ConsultationInventory.ConsultationInventoryId, // link to usage
+                TransactionDate = DateTime.Now,
+                //PerformedByUserId = dto.PerformedByUserId // optional if your DTO tracks the user
+            };
+            _context.InventoryTransactions.Add(transaction);
+
+            // Adjust batch stock immediately
+            var batch = await _context.InventoryBatches.FindAsync(ConsultationInventory.BatchId);
+            if (batch != null)
+                batch.QuantityInStock -= ConsultationInventory.QuantityUsed;
+
+            await _context.SaveChangesAsync();
+            // ----------------------------------------
+
             var readDto = _mapper.Map<ConsultationInventoryReadDTO>(ConsultationInventory);
             return CreatedAtAction(nameof(GetConsultationInventory), new { id = ConsultationInventory.ConsultationInventoryId }, readDto);
         }
@@ -56,16 +76,35 @@ namespace Thesis.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateConsultationInventory(int id, ConsultationInventoryUpdateDTO dto)
         {
-            var ConsultationInventory = await _context.ConsultationInventories.FindAsync(id);
-
-            if (ConsultationInventory == null)
+            var consultationInventory = await _context.ConsultationInventories.FindAsync(id);
+            if (consultationInventory == null)
                 return NotFound();
 
-            _mapper.Map(dto, ConsultationInventory);
-            await _context.SaveChangesAsync();
+            // Find the batch related to the old record
+            var oldBatch = await _context.InventoryBatches.FindAsync(consultationInventory.BatchId);
+            if (oldBatch != null)
+            {
+                // Revert the old quantityUsed from stock
+                oldBatch.QuantityInStock += consultationInventory.QuantityUsed;
+            }
 
+            // Map new values
+            _mapper.Map(dto, consultationInventory);
+
+            // Apply new quantityUsed to stock
+            var newBatch = await _context.InventoryBatches.FindAsync(consultationInventory.BatchId);
+            if (newBatch != null)
+            {
+                if (newBatch.QuantityInStock < consultationInventory.QuantityUsed)
+                    return BadRequest("Not enough stock in batch for this update.");
+
+                newBatch.QuantityInStock -= consultationInventory.QuantityUsed;
+            }
+
+            await _context.SaveChangesAsync();
             return NoContent();
         }
+
 
         // DELETE: api/ConsultationInventories/5
         [HttpDelete("{id}")]
